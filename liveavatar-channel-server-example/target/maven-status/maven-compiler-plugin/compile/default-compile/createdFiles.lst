@@ -1,7 +1,0 @@
-com/newportai/liveavatar/channel/server/config/WebSocketConfig.class
-com/newportai/liveavatar/channel/server/service/MessageProcessingService.class
-com/newportai/liveavatar/channel/server/session/SessionManager.class
-com/newportai/liveavatar/channel/server/session/AvatarSession.class
-com/newportai/liveavatar/channel/server/handler/AvatarChannelWebSocketHandler.class
-com/newportai/liveavatar/channel/server/service/AsrService.class
-com/newportai/liveavatar/channel/server/AvatarServerApplication.class
