@@ -1,0 +1,26 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(mvn clean package:*)",
+      "Bash(ls:*)",
+      "Bash(mvn package:*)",
+      "Bash(mvn clean compile:*)",
+      "Bash(mvn test:*)",
+      "Bash(find:*)",
+      "WebSearch",
+      "Bash(mvn clean install -DskipTests)",
+      "Bash(tee:*)",
+      "Bash(mvn dependency:tree:*)",
+      "Bash(mvn validate)",
+      "Bash(java -jar target/liveavatar-channel-server-example-1.0.0-SNAPSHOT.jar:*)",
+      "Bash(timeout 10 mvn spring-boot:run:*)",
+      "Bash(chmod:*)",
+      "Bash(./verify.sh)",
+      "Bash(./verify-docs.sh:*)",
+      "Skill(code-review:code-review)",
+      "Bash(gh --version)",
+      "Bash(gh auth:*)",
+      "Bash(mvn compile:*)"
+    ]
+  }
+}

@@ -1,0 +1,13 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: liveavatar-channel-server-example
+
+logging:
+  level:
+    root: INFO
+    com.newportai.liveavatar.channel.server: DEBUG
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
