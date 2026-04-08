@@ -53,7 +53,7 @@ live avatar Service  <---WebSocket--->  Developer Server (This Example)
 
 - Java 8 or higher
 - Maven 3.6+
-- Parent project `avatar-channel-sdk` installed in local Maven repository
+- Parent project `liveavatar-channel-sdk` installed in local Maven repository
 
 ### Install Parent SDK
 
@@ -230,29 +230,36 @@ private String callAIService(String text) {
 
 ### Messages Received from live avatar Service
 
-| Event | Description | When Sent |
-|-------|-------------|-----------|
-| `session.init` | Initialize session | On connection start |
-| `input.text` | User text input | User types message |
-| `audio frames` | User voice input | User speaks (binary) |
-| `ping` | Heartbeat check | Periodic |
-| `session.state` | Avatar state update | State changes |
-| `system.idleTrigger` | Idle timeout detected | After inactivity |
-| `session.closing` | Connection closing | Before disconnect |
+| Event                | Description           | When Sent             |
+|----------------------|-----------------------|-----------------------|
+| `session.init`       | Initialize session    | On connection start   |
+| `input.text`         | User text input       | User types message    |
+| `audio frames`       | User voice input      | User speaks (binary)  |
+| `image frames`       | User video input      | camera input (binary) |
+| `ping`               | Heartbeat check       | Periodic              |
+| `session.state`      | Avatar state update   | State changes         |
+| `system.idleTrigger` | Idle timeout detected | After inactivity      |
+| `session.closing`    | Connection closing    | Before disconnect     |
 
 ### Messages Sent to live avatar Service
 
-| Event | Description | When Sent |
-|-------|-------------|-----------|
-| `session.ready` | Session initialized | After `session.init` |
-| `input.asr.partial` | Partial ASR result | During speech recognition |
-| `input.asr.final` | Final ASR result | After speech recognition |
-| `response.chunk` | AI response chunk | Streaming response |
-| `response.done` | Response complete | After all chunks |
-| `control.interrupt` | Interrupt avatar | User interrupts |
-| `system.prompt` | System prompt | Response to idle trigger |
-| `pong` | Heartbeat response | After `ping` |
-| `error` | Error occurred | On errors |
+| Event                         | Description                | When Sent                                 |
+|-------------------------------|----------------------------|-------------------------------------------|
+| `session.ready`               | Session initialized        | After `session.init`                      |
+| `input.asr.partial`           | Partial ASR result         | During speech recognition                 |
+| `input.asr.final`             | Final ASR result           | After speech recognition                  |
+| `input.voice.start`           | User voice start           | When VAD detects user voice starts        |
+| `input.voice.finish`          | User voice finish          | When VAD detects user voice finishes      |
+| `response.chunk`              | AI response chunk          | Streaming response                        |
+| `response.done`               | Response complete          | After all chunks                          |
+| `response.voice.start`        | TTS response start         | When TTS service response starts          |
+| `response.voice.finish`       | TTS response finish        | When TTS service response finishes        |
+| `response.voice.promptStart`  | TTS prompt response start  | When TTS service prompt response starts   |
+| `response.voice.promptFinish` | TTS prompt response finish | When TTS service prompt response finishes |
+| `control.interrupt`           | Interrupt avatar           | User interrupts                           |
+| `system.prompt`               | System prompt              | Response to idle trigger                  |
+| `pong`                        | Heartbeat response         | After `ping`                              |
+| `error`                       | Error occurred             | On errors                                 |
 
 ## Testing
 
@@ -307,10 +314,10 @@ Ensure `session.init` is sent before any other messages.
 1. **CORS**: Configure allowed origins in `WebSocketConfig.java`:
    ```java
    registry.addHandler(handler, "/avatar/ws")
-       .setAllowedOrigins("https://yourdomain.com");
+       .setAllowedOrigins("https://facemarket.ai");
    ```
 
-2. **Authentication**: Add auth token validation:
+2. **Authentication**: Add auth token validation(optional):
    ```java
    @Override
    public void afterConnectionEstablished(WebSocketSession session) {
@@ -349,5 +356,5 @@ This example is part of the Avatar Channel SDK project.
 ## Support
 
 For issues and questions:
-- GitHub Issues: https://github.com/your-org/avatar-channel/issues
+- GitHub Issues: https://github.com/newportAI-lab/liveavatar-channel/issues
 - Documentation: See parent project README
