@@ -16,7 +16,7 @@ This project adopts a Maven multi-module structure:
 
 ```
 liveavatar-channel/                             # Project Root Directory
-# Parent POM                                    # Parent POM
+├── Parent POM                                    # Parent POM
 ├── README.md                                   # Usage Documentation
 ├── PROTOCOL.md                                 # Protocol Documentation
 ├── QUICKSTART.md                               # Quick Start Guide
@@ -98,7 +98,7 @@ mvn clean compile
 mvn clean install
 ```
 
-The generated JAR file is located at `target/liveavatar-channel-sdk-1.0.0-SNAPSHOT.jar`.
+The generated JAR file is located at `target/liveavatar-channel-sdk-1.0.0.jar`.
 
 ### Method 3: Build the Server Example Separately
 
@@ -112,7 +112,7 @@ mvn spring-boot:run
 
 # Or package it as an executable JAR
 mvn clean package
-java -jar target/liveavatar-channel-server-example-1.0.0-SNAPSHOT.jar
+java -jar target/liveavatar-channel-server-example-1.0.0.jar
 ```
 
 ## Usage

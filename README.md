@@ -241,7 +241,7 @@ int sampleRate = frame.getHeader().getSampleRate().getValue();
 }
 ```
 
-> **Note:** The audio protocol is supported only on the WebSocket channel. LiveKit does not support audio track operations within the Java technology stack.
+> **Note:** The audio protocol is supported only on the WebSocket channel.
 
 ## Core Components
 

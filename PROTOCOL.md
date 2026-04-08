@@ -101,7 +101,9 @@ The Live Avatar Service sends a text input message.
 
 ### 4️⃣ Developer Service Streaming Output (Outputs text or speech as needed)
 #### start (Optional)
-Sent by the Developer Service **before** the first `response.chunk`. Use this to configure the TTS engine managed by the Live Avatar Service (speed, volume, mood). If TTS is provided by the developer, this message is unnecessary.
+Sent by the Developer Service **before** the first `response.chunk`. 
+Use this to configure the TTS engine managed by the Live Avatar Service (speed, volume, mood), or using the default settings by not sending the `response.start` message.
+If TTS is provided by the developer, the message is also unnecessary.
 
 ```plain
 {
@@ -209,7 +211,8 @@ A single response may consist of replies from multiple agents.
 ### 6️⃣ Interrupt (Sent by Developer Service)
 ```plain
 {
-"event": "control.interrupt"
+"event": "control.interrupt",
+"requestId": "req_1"// optional
 }
 ```
 
@@ -231,7 +234,7 @@ When triggering an interrupt, providing the `requestId` helps ensure that a spec
 }
 ```
 
-This type of message is typically sent proactively by the system just before a timeout is declared.
+This message is typically sent proactively by the system just before a timeout is declared.
 
 ## Scenario 2: ASR + Real-time Voice (Sent by the Developer Service)
 ---
