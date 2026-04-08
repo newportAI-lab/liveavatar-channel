@@ -8,7 +8,7 @@ A Java SDK for the Live Avatar WebSocket Protocol (Text + Audio/Image)
 - 📨 Comprehensive Support for Text Message Types (session, input, response, control, system, error)
 - 🔊 Support for Binary Audio/Image Frame Protocol (Header + Payload)
 - 🔄 Streamed Data Transmission with Sequence Number-based Out-of-Order Handling
-- 💪 Type-Safe Message and Audio Frame Builders
+- 💪 Type-Safe Message and Audio/Image Frame Builders
 - 🎯 Event-Driven Listener Pattern
 - 💓 Native WebSocket Ping/Pong Automatic Heartbeat (5-second interval)
 - 🔌 Automatic Reconnection Mechanism (Exponential Backoff Strategy)
@@ -22,16 +22,16 @@ This SDK implements the live avatar protocol based on **WebSocket**, supporting 
 ### ✅ Supported Features
 
 - **Text Messages:** JSON-formatted text protocol (session, input, response, control, etc.)
-- **Audio Data:** Binary audio/image frames (Header + Payload)
+- **Binary Data:** Binary audio/image frames (Header + Payload)
 - **Keep-Alive Heartbeat:** Native WebSocket Ping/Pong control frames (handled automatically at 5-second intervals)
-- **Streaming:** Supports streaming of both text and audio data
+- **Streaming:** Supports streaming of both text and audio/image data
 
 ### ⚠️ Technical Stack Notes
 
 **WebSocket Mode:**
 - ✅ Developers must provide their own WebSocket server
 - ✅ Supports Text Protocol (JSON)
-- ✅ Supports Audio Protocol (Binary)
+- ✅ Supports Audio/Image Protocol (Binary)
 - ✅ Fully supported by this SDK
 
 **Build the entire project:**
@@ -82,7 +82,7 @@ Add the following dependency to your `pom.xml`:
 <dependency>
 <groupId>com.newportai.liveavatar.channel</groupId>
 <artifactId>avatar-channel-sdk</artifactId>
-<version>1.0.0-SNAPSHOT</version>
+<version>1.0.0</version>
 </dependency>
 ```
 
