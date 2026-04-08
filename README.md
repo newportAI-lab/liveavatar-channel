@@ -147,12 +147,18 @@ The SDK fully supports all message types defined in the protocol:
 - `input.text` - Text input
 - `input.asr.partial` - ASR partial result
 - `input.asr.final` - ASR final result
+- `input.voice.start` - User voice start
+- `input.voice.finish` - User voice finish
 
 #### Response-related
 - `response.start` - Response start with optional TTS audio config (speed / volume / mood); sent before first chunk when TTS is managed by the Live Avatar Service
 - `response.chunk` - Streaming response chunk
 - `response.done` - Response complete
 - `response.cancel` - Response cancelled
+- `response.voice.start` - TTS response start
+- `response.voice.finish` - TTS response finish
+- `finishresponse.audio.promptStart` - TTS prompt response start
+- `finishresponse.audio.promptFinish` - TTS prompt response finish
 
 #### Control-related
 - `control.interrupt` - Interruption control
