@@ -600,6 +600,7 @@ com.newportai.liveavatar.channel.example.LiveAvatarServiceSimulator
 ```
 
 For details, see: [QUICKSTART.md](./QUICKSTART.md)
+For protocol design, see [PROTOCOL.md](./PROTOCOL.md)
 
 ## License
 
