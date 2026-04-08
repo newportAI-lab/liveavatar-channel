@@ -27,3 +27,5 @@ replay_pid*
 /.idea/
 /CLAUDE.md
 /*/target/
+/liveavatar-channel-server-example/target/
+/liveavatar-channel-sdk/target/

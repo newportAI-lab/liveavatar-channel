@@ -12,7 +12,7 @@
 
     <artifactId>liveavatar-channel-sdk</artifactId>
     <packaging>jar</packaging>
-
+    <version>1.0.0</version>
     <name>live Avatar Channel SDK</name>
     <description>Java SDK for Real-time Interactive live Avatar WebSocket/Data Channel Protocol</description>
 

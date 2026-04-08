@@ -15,7 +15,7 @@
     <property name="user.country" value="CN"/>
     <property name="sun.java.launcher" value="SUN_STANDARD"/>
     <property name="sun.boot.library.path" value="/opt/homebrew/Cellar/openjdk/25/libexec/openjdk.jdk/Contents/Home/lib"/>
-    <property name="sun.java.command" value="/Users/luffer/workspace/liveavatar-channel/liveavatar-channel-sdk/target/surefire/surefirebooter-20260407163700448_3.jar /Users/luffer/workspace/liveavatar-channel/liveavatar-channel-sdk/target/surefire 2026-04-07T16-37-00_407-jvmRun1 surefire-20260407163700448_1tmp surefire_0-20260407163700448_2tmp"/>
+    <property name="sun.java.command" value="/Users/luffer/workspace/liveavatar-channel/liveavatar-channel-sdk/target/surefire/surefirebooter-20260408104844067_3.jar /Users/luffer/workspace/liveavatar-channel/liveavatar-channel-sdk/target/surefire 2026-04-08T10-48-44_020-jvmRun1 surefire-20260408104844067_1tmp surefire_0-20260408104844067_2tmp"/>
     <property name="http.nonProxyHosts" value="192.168.0.0/16|*.192.168.0.0/16|10.0.0.0/8|*.10.0.0.0/8|172.16.0.0/12|*.172.16.0.0/12|127.0.0.1|localhost|*.localhost|local|*.local|timestamp.apple.com|*.timestamp.apple.com|sequoia.apple.com|*.sequoia.apple.com|seed-sequoia.siri.apple.com|*.seed-sequoia.siri.apple.com"/>
     <property name="jdk.debug" value="release"/>
     <property name="surefire.test.class.path" value="/Users/luffer/workspace/liveavatar-channel/liveavatar-channel-sdk/target/test-classes:/Users/luffer/workspace/liveavatar-channel/liveavatar-channel-sdk/target/classes:/Users/luffer/.m2/repository/com/fasterxml/jackson/core/jackson-databind/2.15.2/jackson-databind-2.15.2.jar:/Users/luffer/.m2/repository/com/fasterxml/jackson/core/jackson-annotations/2.15.2/jackson-annotations-2.15.2.jar:/Users/luffer/.m2/repository/com/fasterxml/jackson/core/jackson-core/2.15.2/jackson-core-2.15.2.jar:/Users/luffer/.m2/repository/com/squareup/okhttp3/okhttp/4.11.0/okhttp-4.11.0.jar:/Users/luffer/.m2/repository/com/squareup/okio/okio/3.2.0/okio-3.2.0.jar:/Users/luffer/.m2/repository/com/squareup/okio/okio-jvm/3.2.0/okio-jvm-3.2.0.jar:/Users/luffer/.m2/repository/org/jetbrains/kotlin/kotlin-stdlib/1.6.20/kotlin-stdlib-1.6.20.jar:/Users/luffer/.m2/repository/org/jetbrains/kotlin/kotlin-stdlib-common/1.6.20/kotlin-stdlib-common-1.6.20.jar:/Users/luffer/.m2/repository/org/jetbrains/annotations/13.0/annotations-13.0.jar:/Users/luffer/.m2/repository/org/jetbrains/kotlin/kotlin-stdlib-jdk8/1.6.20/kotlin-stdlib-jdk8-1.6.20.jar:/Users/luffer/.m2/repository/org/jetbrains/kotlin/kotlin-stdlib-jdk7/1.6.20/kotlin-stdlib-jdk7-1.6.20.jar:/Users/luffer/.m2/repository/org/slf4j/slf4j-api/2.0.7/slf4j-api-2.0.7.jar:/Users/luffer/.m2/repository/junit/junit/4.13.2/junit-4.13.2.jar:/Users/luffer/.m2/repository/org/hamcrest/hamcrest-core/1.3/hamcrest-core-1.3.jar:/Users/luffer/.m2/repository/org/slf4j/slf4j-simple/2.0.7/slf4j-simple-2.0.7.jar:"/>
@@ -34,7 +34,7 @@
     <property name="java.vm.specification.vendor" value="Oracle Corporation"/>
     <property name="java.specification.name" value="Java Platform API Specification"/>
     <property name="apple.awt.application.name" value="ForkedBooter"/>
-    <property name="surefire.real.class.path" value="/Users/luffer/workspace/liveavatar-channel/liveavatar-channel-sdk/target/surefire/surefirebooter-20260407163700448_3.jar"/>
+    <property name="surefire.real.class.path" value="/Users/luffer/workspace/liveavatar-channel/liveavatar-channel-sdk/target/surefire/surefirebooter-20260408104844067_3.jar"/>
     <property name="user.script" value="Hans"/>
     <property name="sun.management.compiler" value="HotSpot 64-Bit Tiered Compilers"/>
     <property name="ftp.nonProxyHosts" value="192.168.0.0/16|*.192.168.0.0/16|10.0.0.0/8|*.10.0.0.0/8|172.16.0.0/12|*.172.16.0.0/12|127.0.0.1|localhost|*.localhost|local|*.local|timestamp.apple.com|*.timestamp.apple.com|sequoia.apple.com|*.sequoia.apple.com|seed-sequoia.siri.apple.com|*.seed-sequoia.siri.apple.com"/>
@@ -71,14 +71,14 @@
     <property name="java.class.version" value="69.0"/>
     <property name="http.proxyPort" value="7890"/>
   </properties>
-  <testcase name="testErrorMessage" classname="com.newportai.liveavatar.channel.util.MessageBuilderTest" time="0.075"/>
-  <testcase name="testInputText" classname="com.newportai.liveavatar.channel.util.MessageBuilderTest" time="0.001"/>
+  <testcase name="testErrorMessage" classname="com.newportai.liveavatar.channel.util.MessageBuilderTest" time="0.077"/>
+  <testcase name="testInputText" classname="com.newportai.liveavatar.channel.util.MessageBuilderTest" time="0.0"/>
   <testcase name="testAllSessionStates" classname="com.newportai.liveavatar.channel.util.MessageBuilderTest" time="0.001"/>
   <testcase name="testJsonSerialization" classname="com.newportai.liveavatar.channel.util.MessageBuilderTest" time="0.007"/>
   <testcase name="testControlInterrupt" classname="com.newportai.liveavatar.channel.util.MessageBuilderTest" time="0.0"/>
   <testcase name="testResponseChunk" classname="com.newportai.liveavatar.channel.util.MessageBuilderTest" time="0.0"/>
   <testcase name="testNewAudioEvents" classname="com.newportai.liveavatar.channel.util.MessageBuilderTest" time="0.0"/>
-  <testcase name="testSessionInit" classname="com.newportai.liveavatar.channel.util.MessageBuilderTest" time="0.001"/>
+  <testcase name="testSessionInit" classname="com.newportai.liveavatar.channel.util.MessageBuilderTest" time="0.002"/>
   <testcase name="testSessionReady" classname="com.newportai.liveavatar.channel.util.MessageBuilderTest" time="0.0"/>
   <testcase name="testSessionState" classname="com.newportai.liveavatar.channel.util.MessageBuilderTest" time="0.0"/>
 </testsuite>
