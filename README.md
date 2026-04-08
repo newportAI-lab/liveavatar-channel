@@ -603,7 +603,7 @@ For details, see: [QUICKSTART.md](./QUICKSTART.md)
 
 ## License
 
-[TBD]
+see: [LICENSE](./LICENSE)
 
 ## Contributing
 
