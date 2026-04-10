@@ -1,5 +1,7 @@
 # Live Avatar Channel SDK - Quick Start
 
+**English** | [中文](./QUICKSTART.zh.md)
+
 ## Technology Stack Overview
 
 ### ✅ Supported by This SDK

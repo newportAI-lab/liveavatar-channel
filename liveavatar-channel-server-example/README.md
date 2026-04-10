@@ -1,5 +1,7 @@
 # Live Avatar Channel Server Example
 
+**English** | [中文](./README.zh.md)
+
 This is a **reference implementation of the platform/developer server side** of the Live Avatar Channel Protocol. It supports both connection modes and demonstrates how to build a WebSocket server that processes user interactions with a live avatar.
 
 ## What This Example Does
@@ -22,7 +24,7 @@ The developer calls the REST API first, then connects to the platform WebSocket.
 Test with: **`LiveAvatarServiceInboundSimulator`**
 
 ```
-Developer App                      This Server (Platform)
+Developer Server                     live avatar Service 
      |                                      |
      |-- POST /api/session/start ---------->|
      |<-- { sessionId, wsUrl } -------------|
@@ -42,33 +44,15 @@ Test with: **`LiveAvatarServiceOutboundSimulator`**
 ```
 live avatar Service  <---WebSocket--->  Developer Server (This Example)
      (Client)                                    (Server)
-        |                                           |
-        |-------- session.init ------------------>|
-        |<------- session.ready -------------------|
-        |                                           |
-        |-------- input.text("hello") ------------>|
-        |                                           | (AI Processing)
-        |<------- response.chunk -------------------|
-        |<------- response.chunk -------------------|
-        |<------- response.done --------------------|
-        |                                           |
-        |-------- audio frames ------------------->|
-        |                                           | (ASR Processing)
-        |<------- input.voice.start --------------->|
-        |<------- input.asr.partial ----------------|
-        |<------- input.asr.final ------------------|
-        |<------- input.voice.finish --------------->|
-        |                                           | (AI Processing)
-        |<------- response.chunk -------------------|
-        |<------- response.done --------------------|
-        |<------- response.audio.start -------------|
-        |<------- response.audio.finish -------------|
-        |                                           |
-        |-------- system.idleTrigger ------------->|
-        |                                           | (Business Logic)
-        |<------- system.prompt --------------------|
-        |<------- system.promptStart ---------------|
-        |<------- system.promptFinish ---------------|
+     |                                      |
+     |-- POST /api/session/start ---------->|
+     |<-- { sessionId, wsUrl } -------------|
+     |                                      |
+     |-- WebSocket connect to wsUrl ------->|
+     |-- session.init (sessionId) --------->|
+     |<-- session.ready --------------------|
+     |-- input.text / audio frames -------->|
+     |<-- response.chunk / response.done ---|
 ```
 
 ## Quick Start
@@ -110,12 +94,14 @@ Inbound session API: POST http://localhost:8080/api/session/start
 In another terminal, run the appropriate simulator for your mode:
 
 **Inbound mode** (developer client connects to platform):
+
 ```bash
 cd ..
 mvn exec:java -Dexec.mainClass="com.newportai.liveavatar.channel.example.LiveAvatarServiceInboundSimulator"
 ```
 
 **Outbound mode** (live avatar service connects to developer server):
+
 ```bash
 cd ..
 mvn exec:java -Dexec.mainClass="com.newportai.liveavatar.channel.example.LiveAvatarServiceOutboundSimulator"
@@ -173,6 +159,7 @@ if (avatarSession.hasActiveResponse()) {
 ### 3. ASR Processing (Mock Implementation)
 
 The `AsrService` demonstrates how to:
+
 - Receive audio frames
 - Perform VAD (Voice Activity Detection)
 - Send partial ASR results (`input.asr.partial`)
@@ -333,6 +320,7 @@ server:
 ### WebSocket Connection Failed
 
 Check:
+
 1. Server is running (`mvn spring-boot:run`)
 2. Correct URL: `ws://localhost:8080/avatar/ws`
 3. No firewall blocking the connection
@@ -346,12 +334,14 @@ Ensure `session.init` is sent before any other messages.
 ### Security
 
 1. **CORS**: Configure allowed origins in `WebSocketConfig.java`:
+
    ```java
    registry.addHandler(handler, "/avatar/ws")
        .setAllowedOrigins("https://facemarket.ai");
    ```
 
 2. **Authentication**: Add auth token validation(optional):
+
    ```java
    @Override
    public void afterConnectionEstablished(WebSocketSession session) {
@@ -365,6 +355,7 @@ Ensure `session.init` is sent before any other messages.
 ### Performance
 
 1. **Thread Pool**: Adjust thread pool size in `MessageProcessingService`:
+
    ```java
    executor.setCorePoolSize(50);
    executor.setMaxPoolSize(200);
@@ -377,6 +368,7 @@ Ensure `session.init` is sent before any other messages.
 ### Monitoring
 
 Add metrics and monitoring:
+
 - WebSocket connection count
 - Active session count
 - Message processing latency
@@ -390,5 +382,6 @@ This example is part of the Avatar Channel SDK project.
 ## Support
 
 For issues and questions:
-- GitHub Issues: https://github.com/newportAI-lab/liveavatar-channel/issues
+
+- GitHub Issues: <https://github.com/newportAI-lab/liveavatar-channel/issues>
 - Documentation: See parent project README

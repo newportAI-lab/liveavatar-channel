@@ -1,26 +1,44 @@
 # Protocol Overview
-This Protocol is designed to handle communication between developer and Live avatar service via WebSocket.
-Developers are required to provide the WebSocket service address.
+
+**English** | [中文](./PROTOCOL.zh.md)
+
+This protocol defines the WebSocket communication between the Live Avatar (digital human) service and developer services, covering text, audio, and image content.
+
+Since the Live Avatar system also supports text communication via LiveKit Data Channel, the protocol documentation also covers the Data Channel protocol.
+
+## Design Goals
+
+1. WebSocket and WebRTC Data Channel share the same text protocol format (except for heartbeat).
+2. Semantic message type naming for ease of understanding.
+3. Streaming data transmission support.
+4. Out-of-order resilience.
+5. Extensible to multi-user room scenarios.
 
 ## Text Message Type Naming Conventions
-We use the term "event" to designate message types. To prevent confusion as the number of message types grows, a specific set of conventions has been established. ### Three-Part Semantic Structure
+
+We use the term "event" to designate message types. To prevent confusion as the number of message types grows, a specific set of conventions has been established.
+
+### Three-Part Semantic Structure
+```
 <domain>.<action>[.<stage>]
+```
 
 #### 1️⃣ Layer 1: Domain (Category)
+
 | Domain | Meaning |
 | --- | --- |
-| session | Session Lifecycle |
-| input | User Input |
-| response | Model Output |
-| control | Control Signals |
-| system | System Behavior |
+| session | Session lifecycle |
+| input | User input |
+| response | Model output |
+| control | Control signals |
+| system | System behavior |
 | error | Error |
-| tool (Future) | Tool Calls |
-
+| tool (future) | Tool calls |
 
 ---
 
 #### 2️⃣ Layer 2: Action
+
 Describes "what is being done"
 
 | Action | Example |
@@ -33,13 +51,13 @@ Describes "what is being done"
 | done | response.done |
 | interrupt | control.interrupt |
 | prompt | system.prompt |
-| idle trigger | system.idleTrigger |
-
+| idleTrigger | system.idleTrigger |
 
 ---
 
 #### 3️⃣ Layer 3: Stage (Optional)
-Used for "Streaming/State"
+
+Used for "streaming / state"
 
 | Stage | Example |
 | --- | --- |
@@ -49,74 +67,194 @@ Used for "Streaming/State"
 | done | response.done |
 | cancel | response.cancel |
 
+---
 
-# Text Protocol Design: Scenario-Specific Protocols
+# Text Protocol Design
+
+## WebSocket Inbound / Outbound Modes
+
+### Inbound Mode
+
+In Inbound mode, the Live Avatar service provides the WebSocket server address and the developer service connects to it as a client.
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant User as User (Frontend SDK)
+    participant AppServer as Developer Backend
+    participant Platform as Live Avatar Service
+    participant RTC as RTC Room (SFU)
+    participant Avatar as Avatar Engine
+
+    %% 1. Auth & Initialization
+    AppServer->>Platform: /auth/getAuthToken (API Key)
+    Platform->>AppServer: Return session_token
+    AppServer->>User: Return session_token
+
+    User->>Platform: /session/start
+    Platform->>Avatar: Start avatar
+    Avatar->>RTC: Join room
+    Avatar->>Platform: Start complete
+    Platform->>User: Return clientRtcToken + sessionId
+
+    %% Key difference: Inbound mode connection initiation
+    rect rgb(255, 240, 220)
+    Note over AppServer, Platform: [Inbound Key Difference]
+    User->>AppServer: 5a. Notify developer backend (with sessionId)
+    AppServer-->>Platform: 5b. Establish WebSocket connection (as Client)
+    Note right of AppServer: Developer side needs no public IP<br/>Only needs to verify platform certificate
+    end
+
+    %% 2. RTC link establishment
+    User->>RTC: Join room
+    User-->>RTC: Publish text/audio stream
+
+    %% 3. Core business loop
+    Platform-->>RTC: Subscribe to user text/audio stream
+    Platform->>AppServer: Forward to developer backend via WebSocket
+
+    alt Text mode
+        AppServer-->>Avatar: Return reply text
+        Avatar->>Avatar: Internal TTS conversion
+    else Audio mode
+        AppServer-->>Avatar: Return reply audio stream
+    end
+
+    %% 4. Avatar feedback
+    Avatar->>RTC: Publish avatar audio/video stream
+    RTC-->>User: Subscribe and render
+```
+
+### Outbound Mode
+
+In Outbound mode, the developer service provides the WebSocket server address and the Live Avatar service connects to it as a client.
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant User as User (Frontend SDK)
+    participant AppServer as Developer Backend
+    participant Platform as Live Avatar Service
+    participant RTC as RTC Room (SFU)
+    participant Avatar as Avatar Engine
+
+    %% 1. Auth & Initialization
+    AppServer->>Platform: /auth/getAuthToken (API Key)
+    Platform->>AppServer: Return session_token
+    AppServer->>User: Return session_token
+
+    User->>Platform: /session/start
+
+    %% Key difference: Outbound mode connection initiation
+    rect rgb(220, 245, 220)
+    Note over Platform, AppServer: [Outbound Key Difference]
+    Platform-->>AppServer: 5. Establish WebSocket connection (platform as Client)
+    Note left of AppServer: Developer side must expose public IP/domain<br/>Must handle platform handshake auth
+    end
+
+    Platform->>Avatar: Start avatar
+    Avatar->>RTC: Join room
+    Avatar->>Platform: Start complete
+    Platform->>User: Return clientRtcToken
+
+    %% 2. RTC link establishment
+    User->>RTC: Join room
+    User-->>RTC: Publish text/audio stream
+
+    %% 3. Core business loop
+    Platform-->>RTC: Subscribe to user text/audio stream
+    Platform->>AppServer: Forward to developer backend via WebSocket
+
+    alt Text mode
+        AppServer-->>Avatar: Return reply text
+        Avatar->>Avatar: Internal TTS conversion
+    else Audio mode
+        AppServer-->>Avatar: Return reply audio stream
+    end
+
+    %% 4. Avatar feedback
+    Avatar->>RTC: Publish avatar audio/video stream
+    RTC-->>User: Subscribe and render
+```
+
+### Choosing Between the Two Modes
+
+- If your business demands **ultra-low latency and large-scale concurrency stability**, and you have a mature ops team capable of exposing a stable public endpoint, **Outbound** offers better architectural clarity and resource control.
+- If you prioritize **rapid delivery and internal network security**, and want to avoid complex firewall traversal, **Inbound** introduces only a negligible performance overhead that is nearly imperceptible under async Java frameworks such as Netty or WebFlux.
+
+---
+
 ## Scenario 1: WebSocket Full Flow (Standard Path)
+
 ### 1️⃣ Establishing Connection
+
 #### Client (Live Avatar Service) → Server (Developer Service)
-```plain
+```json
 {
-"event": "session.init",
-"data": {
-"sessionId": "sess_123",
-"userId": "u_1"
-}
+  "event": "session.init",
+  "data": {
+    "sessionId": "sess_123",
+    "userId": "u_1"
+  }
 }
 ```
 
 ---
 
 #### (Developer Service) → Client (Live Avatar Service)
-```plain
+```json
 {
-"event": "session.ready"
+  "event": "session.ready"
 }
 ```
 
 ---
 
 ### 2️⃣ Heartbeat
+
 Relies on standard WebSocket protocol control frames.
 
 Adheres to the standard WebSocket protocol (RFC 6455):
 
-+ **Ping (0x9)**: The server may send Ping frames to the client. + **Pong (0xA)**: Upon receiving a Ping frame, the client must automatically reply with a Pong frame.
+- **Ping (0x9)**: The server may send Ping frames to the client.
+- **Pong (0xA)**: Upon receiving a Ping frame, the client must automatically reply with a Pong frame.
 
 ---
 
 ### 3️⃣ User Text Input
+
 The Live Avatar Service sends a text input message.
 
-```plain
+```json
 {
-"event": "input.text",
-"requestId": "req_1",
-"data": {
-"text": "What is your name?"
-}
+  "event": "input.text",
+  "requestId": "req_1",
+  "data": {
+    "text": "What is your name?"
+  }
 }
 ```
 
 ---
 
-### 4️⃣ Developer Service Streaming Output (Outputs text or speech as needed)
-#### start (Optional)
-Sent by the Developer Service **before** the first `response.chunk`. 
-Use this to configure the TTS engine managed by the Live Avatar Service (speed, volume, mood), or using the default settings by not sending the `response.start` message.
-If TTS is provided by the developer, the message is also unnecessary.
+### 4️⃣ Developer Service Streaming Output
 
-```plain
+#### start (Optional)
+
+Sent by the Developer Service **before** the first `response.chunk`. Use this to configure the TTS engine managed by the Live Avatar Service (speed, volume, mood). Omit it to use default settings. If TTS is provided by the developer, this message is also unnecessary.
+
+```json
 {
-"event": "response.start",
-"requestId": "req_1",
-"responseId": "res_1",
-"data": {
-  "audioConfig": {
-    "speed": 1.0,
-    "volume": 1.0,
-    "mood": "neutral"
+  "event": "response.start",
+  "requestId": "req_1",
+  "responseId": "res_1",
+  "data": {
+    "audioConfig": {
+      "speed": 1.0,
+      "volume": 1.0,
+      "mood": "neutral"
+    }
   }
-}
 }
 ```
 
@@ -146,27 +284,27 @@ If TTS is provided by the developer, the message is also unnecessary.
 ---
 
 #### chunk (Text)
-```plain
+```json
 {
-"event": "response.chunk",
-"requestId": "req_1",
-"responseId": "res_1",
-"seq": 12,
-"timestamp": 1710000000000,
-"data": {
-"text": "Hello"
-}
+  "event": "response.chunk",
+  "requestId": "req_1",
+  "responseId": "res_1",
+  "seq": 12,
+  "timestamp": 1710000000000,
+  "data": {
+    "text": "Hello"
+  }
 }
 ```
 
 ---
 
 #### done (Text)
-```plain
+```json
 {
-"event": "response.done",
-"requestId": "req_1",
-"responseId": "res_1"
+  "event": "response.done",
+  "requestId": "req_1",
+  "responseId": "res_1"
 }
 ```
 
@@ -178,193 +316,249 @@ requestId → responseId = 1:N
 
 A single response may consist of replies from multiple agents.
 
-
+---
 
 ### 5️⃣ State Synchronization (Sent by the Live Avatar Service)
-```plain
+
+```json
 {
-"event": "session.state",
-"seq": 12,
-"timestamp": 1710000000000,
-"data": {
-"state": "SPEAKING"
-}
+  "event": "session.state",
+  "seq": 12,
+  "timestamp": 1710000000000,
+  "data": {
+    "state": "SPEAKING"
+  }
 }
 ```
 
-`seq` increments sequentially within a single session. All `state` Values ​​(Subject to Future Expansion)
+`seq` increments sequentially within a single session. All `state` values (subject to future expansion):
 
 | **State** | **Speaker** | **System Behavior** |
 | --- | --- | --- |
-| **IDLE** | None | Awaiting Input |
-| **LISTENING** | User | ASR Input Capture |
-| **THINKING** | System (Mind) | LLM/TTS Preparation |
-| **STAGING** | System (Body) | Preparing Live Avatar Generation |
-| **SPEAKING** | System (Body) | Live Avatar: Normal Response Output |
-| **PROMPT_THINKING** | System (Brain) | Preparing Reminder Script |
-| **PROMPT_STAGING** | System (Body) | Preparing to Generate Live Avatar |
-| **PROMPT_SPEAKING** | System (Body) | Live Avatar: Broadcasting Reminder Audio |
-
+| **IDLE** | None | Awaiting input |
+| **LISTENING** | User | ASR input capture |
+| **THINKING** | System (Mind) | LLM/TTS preparation |
+| **STAGING** | System (Body) | Preparing Live Avatar generation |
+| **SPEAKING** | System (Body) | Live Avatar: normal response output |
+| **PROMPT_THINKING** | System (Mind) | Preparing reminder script |
+| **PROMPT_STAGING** | System (Body) | Preparing to generate Live Avatar |
+| **PROMPT_SPEAKING** | System (Body) | Live Avatar: broadcasting reminder audio |
 
 ---
 
 ### 6️⃣ Interrupt (Sent by Developer Service)
-```plain
+
+```json
 {
-"event": "control.interrupt",
-"requestId": "req_1"// optional
+  "event": "control.interrupt",
+  "requestId": "req_2"
 }
 ```
 
 A signal initiated by the Developer Service.
 
-The Live Avatar Service is solely responsible for executing the interrupt action. The logic applies identically to both text input and audio input; the distinction lies in the Developer Service's strategy for determining when to interrupt: Text Input → Trigger immediately. Audio Input → Relies on VAD (Voice Activity Detection) or specific policy determinations.
+The Live Avatar Service is solely responsible for executing the interrupt action. The logic applies identically to both text input and audio input; the distinction lies in the Developer Service's strategy for determining when to interrupt: Text input → trigger immediately. Audio input → relies on VAD (Voice Activity Detection) or a specific policy.
 
-When triggering an interrupt, providing the `requestId` helps ensure that a specific, designated conversation is interrupted precisely, thereby preventing erroneous interruptions caused by network instability. This field is optional.
+Providing `requestId` helps ensure that a specific, designated conversation is interrupted precisely, preventing erroneous interruptions caused by network instability. This field is optional.
+
+The following sequence diagram illustrates the interrupt execution flow:
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant User as User (Frontend SDK)
+    participant AppServer as Developer Backend (Handler)
+    participant Task as Response Task (LLM/TTS)
+    participant Avatar as Live Avatar Service (Platform/RTC)
+
+    Note over User, Avatar: Scenario 1: Avatar is speaking, user sends a text message
+    User->>AppServer: 1. Send text message (input.text)
+
+    rect rgb(240, 248, 255)
+        Note right of AppServer: [Text Hard Interrupt]
+        AppServer->>Task: 2. cancelCurrentResponse() (terminate old task)
+        AppServer->>Avatar: 3. control.interrupt (flush RTC buffer)
+    end
+
+    AppServer->>Task: 4. processTextInput (start new task)
+    Task-->>Avatar: 5. Push new reply text/audio
+    Avatar-->>User: 6. Render new reply
+
+    Note over User, Avatar: Scenario 2: Avatar is speaking, user starts speaking (voice interrupt)
+    User->>AppServer: 7. Send audio stream (Binary Frame)
+
+    AppServer->>AppServer: 8. asrService.detectVoiceActivity (VAD triggered)
+
+    rect rgb(255, 240, 245)
+        Note right of AppServer: [Voice Real-time Interrupt]
+        AppServer->>Task: 9. cancelCurrentResponse() (cut off at the source)
+        AppServer->>Avatar: 10. control.interrupt (issue command)
+    end
+
+    AppServer->>AppServer: 11. Continue ASR recognition & business logic
+    Note over User, Avatar: Repeat steps 4-6 for new reply flow
+```
 
 ---
 
 ### 7️⃣ Connection Imminently Closing (Sent by the Live Avatar Service)
-```plain
+
+```json
 {
-"event": "session.closing",
-"data": {
-"reason": "timeout"
-}
+  "event": "session.closing",
+  "data": {
+    "reason": "timeout"
+  }
 }
 ```
 
 This message is typically sent proactively by the system just before a timeout is declared.
 
-## Scenario 2: ASR + Real-time Voice (Sent by the Developer Service)
 ---
 
-### ASR Recognition (The one who provides the ASR service is responsible for sending the messages)
-#### User Speech-to-Text Recognition (Streaming/Partial)
-```plain
+## Scenario 2: ASR + Real-time Voice (Sent by the Developer Service)
+
+### ASR Recognition (The party providing ASR is responsible for sending these messages)
+
+#### User Speech-to-Text Recognition (Streaming / Partial)
+```json
 {
-"event": "input.asr.partial",
-"requestId": "req_2",
-"seq": 3,
-"data": {
-"text": "You are called",
-"final": false
-}
+  "event": "input.asr.partial",
+  "requestId": "req_2",
+  "seq": 3,
+  "data": {
+    "text": "What is your",
+    "final": false
+  }
 }
 ```
 
 ---
 
 #### User Speech-to-Text Recognition (Final Result)
-```plain
+```json
 {
-"event": "input.asr.final",
-"requestId": "req_2",
-"data": {
-"text": "What is your name?"
-}
+  "event": "input.asr.final",
+  "requestId": "req_2",
+  "data": {
+    "text": "What is your name?"
+  }
 }
 ```
 
 ---
 
-### Voice Input Start/End Detection (The one who provides the ASR service is responsible for sending the messages)
+### Voice Input Start / End Detection (The party providing ASR is responsible for sending these messages)
+
 #### Voice Input Start Detected
-```plain
+```json
 {
-"event": "input.voice.start",
-"requestId": "req_1"
+  "event": "input.voice.start",
+  "requestId": "req_1"
 }
 ```
 
 #### Voice Input End Detected
-```plain
+```json
 {
-"event": "input.voice.finish",
-"requestId": "req_1"
+  "event": "input.voice.finish",
+  "requestId": "req_1"
 }
 ```
-It is acceptable to send only the `input.asr.final` event; `input.asr.partial` is classified as an optional message.
+
+It is acceptable to send only `input.asr.final`; `input.asr.partial` is an optional message.
 
 👉 The subsequent workflow is identical to that of text input.
 
+---
 
-### Speech Output Start/End Detection (The one who provides the TTS service is responsible for sending the messages)
-#### **Speech Output Started**
-```plain
+### Speech Output Start / End Detection (The party providing TTS is responsible for sending these messages)
+
+#### Speech Output Started
+```json
 {
-"event": "response.audio.start",
-"requestId": "req_1",
-"responseId": "res_1"
+  "event": "response.audio.start",
+  "requestId": "req_1",
+  "responseId": "res_1"
 }
 ```
 
-#### **Speech Output Finished**
-```plain
+#### Speech Output Finished
+```json
 {
-"event": "response.audio.finish",
-"requestId": "req_1",
-"responseId": "res_1"
+  "event": "response.audio.finish",
+  "requestId": "req_1",
+  "responseId": "res_1"
 }
 ```
 
-**Scenario: TTS Provided by the Developer Service**:
+**Scenario: TTS provided by the Developer Service**
 
 After sending the "Speech Output Started" message, the developer service pushes the corresponding audio data. Once the audio data transmission is complete, the "Speech Output Finished" message is sent.
 
-**Scenario: TTS Provided by the Live Avatar Service**:
+**Scenario: TTS provided by the Live Avatar Service**
 
 After sending the "Speech Output Started" message, the Live Avatar Service pushes the corresponding audio data. Once the audio data transmission is complete, the "Speech Output Finished" message is sent.
 
 ---
 
 ## Scenario 3: Server-Initiated Interaction (Idle Wake-up)
-### **1️⃣** **Idle Event (Sent by the Live Avatar Service)**
-```plain
+
+### 1️⃣ Idle Event (Sent by the Live Avatar Service)
+
+```json
 {
-"event": "system.idleTrigger",
-"data": {
-"reason": "user_idle",
-"idleTimeMs": 120000
-}
+  "event": "system.idleTrigger",
+  "data": {
+    "reason": "user_idle",
+    "idleTimeMs": 120000
+  }
 }
 ```
 
-The system detected that the live avatar has been idle for a significant period.
+The system detected that the Live Avatar has been idle for a significant period.
 
-### 2️⃣ **Idle Prompt Text Message** (Sent by the Developer Service)
-```plain
+### 2️⃣ Idle Prompt Text Message (Sent by the Developer Service)
+
+```json
 {
-"event": "system.prompt",
-"data": {
-"text": "Are you still there?"
-}
+  "event": "system.prompt",
+  "data": {
+    "text": "Are you still there?"
+  }
 }
 ```
 
 ---
 
-Upon receiving this message, the Live Avatar Service will utilize the configured TTS engine to drive the Live Avatar to speak the specified content.
+Upon receiving this message, the Live Avatar Service will use the configured TTS engine to drive the Live Avatar to speak the specified content.
 
-The prompt text does not count toward the accumulated user idle time. ### 3️⃣ **Idle Reminder Start Message** (Sent by Developer Service)
-```plain
+The prompt text does not count toward the accumulated user idle time.
+
+### 3️⃣ Idle Reminder Start Message (Sent by the Developer Service)
+
+```json
 {
-"event": "response.audio.promptStart"
+  "event": "response.audio.promptStart"
 }
 ```
 
-### 4️⃣ **Idle Reminder End Message** (Sent by Developer Service)
-```plain
+### 4️⃣ Idle Reminder End Message (Sent by the Developer Service)
+
+```json
 {
-"event": "response.audio.promptFinish"
+  "event": "response.audio.promptFinish"
 }
 ```
 
-After sending the Idle Reminder Start message, the Developer Service pushes the corresponding reminder audio; the Idle Reminder End message is sent only after the prompt audio transmission is complete.
+After sending the Idle Reminder Start message, the Developer Service pushes the corresponding reminder audio. The Idle Reminder End message is sent only after the prompt audio transmission is complete.
 
-Prompt audio is excluded from the user's cumulative idle time calculation.
+Prompt audio does not count toward the accumulated user idle time.
+
+---
 
 ## Scenario 4: LiveKit DataChannel (Low-Latency Path)
+
 👉 Core Principle:
 
 **Aside from the fact that ping/pong requests are no longer required, the protocol format remains entirely identical; the only difference is that traffic is routed via RTC.**
@@ -372,46 +566,52 @@ Prompt audio is excluded from the user's cumulative idle time calculation.
 ---
 
 ## Scenario 5: Error Handling (Optional)
----
 
 ### Error (Sent by Developer Service)
-```plain
+
+```json
 {
-"event": "error",
-"requestId": "req_1",
-"data": {
-"code": "ASR_FAIL",
-"message": "audio decode error"
-}
+  "event": "error",
+  "requestId": "req_1",
+  "data": {
+    "code": "ASR_FAIL",
+    "message": "audio decode error"
+  }
 }
 ```
 
 ---
 
 ### Stream Cancellation (Sent by Developer Service)
-```plain
+
+```json
 {
-"event": "response.cancel",
-"responseId": "response_1"
+  "event": "response.cancel",
+  "responseId": "response_1"
 }
 ```
 
-
+---
 
 # Audio Protocol Design (WebSocket Channel Only)
-Audio consists of binary data; each audio packet is encapsulated within the following data structure:
+
+Audio consists of binary data; each audio packet is encapsulated within the following data structure.
 
 ## 📦 Data Structure
-```plain
+
+```
 | Header (9 bytes) | Audio Payload |
 ```
 
 ---
 
 ## 🧠 Header Bit Definitions
-Total: 8 * 9 = 72 bits
 
-Listed in sequential order, indicating the number of bits occupied by each field. | Field | Bits | Bit Offset (High → Low) | Range/Values ​​| Description |
+Total: 8 × 9 = 72 bits
+
+Listed in sequential order, indicating the number of bits occupied by each field.
+
+| Field | Bits | Bit Offset (High → Low) | Range / Values | Description |
 | --- | --- | --- | --- | --- |
 | **T (Type)** | 2 | 70–71 | `01` | Fixed as Audio Frame |
 | **C (Channel)** | 1 | 69 | 0 / 1 | 0=Mono, 1=Stereo |
@@ -424,41 +624,53 @@ Listed in sequential order, indicating the number of bits occupied by each field
 | **R (Reserved)** | 4 | 16–19 | 0000 | Reserved Bits |
 | **L (Length)** | 16 | 0–15 | 0–65535 | Payload Length (Bytes) |
 
-
-Both the Sequence Number (Seq) and Timestamp (TS) are incremental; however, due to their limited bit-widths, they must support wrapping.
+Both Seq and TS are incremental; however, due to their limited bit-widths, they must support wrapping.
 
 ### Wrapping Rules
-Both TS and Seq function as wrapping counters. The receiving end *must* use modular arithmetic for comparisons; direct comparison based on magnitude is prohibited. ### The Jitter Buffer must be based on the TS (Timestamp), not the Seq (Sequence Number).
-Sorting Priority:
-1. TS (Primary Sorting Key)
-2. Seq (Secondary Key for Duplicate Removal)
+
+Both TS and Seq function as wrapping counters. The receiving end **must** use modular arithmetic for comparisons; direct comparison based on magnitude is prohibited.
+
+### The Jitter Buffer Must Be Based on TS (Not Seq)
+
+Sorting priority:
+1. TS (Primary sorting key)
+2. Seq (Secondary key for duplicate removal)
 
 ### Packet Loss / Out-of-Order Window
-Maximum Out-of-Order Window ≈ 200–500 ms
+
+Maximum out-of-order window ≈ 200–500 ms
 
 ## 🧠 Audio Payload
+
 This contains the actual raw audio binary data, specifically formatted as PCM or Opus binary data.
 
 Whether the audio data is sent from the Live Avatar Service to a developer, or from a developer to the Live Avatar Service, it must strictly adhere to this format.
 
+---
+
 # Image Protocol Design (WebSocket Channel Only)
+
 Image data is transmitted as binary data; each image packet is encapsulated within the following data structure (this applies exclusively to scenarios involving multimodal image stream input).
 
 ## 📦 Data Structure
-```plain
-| Header (12 bytes) | Audio Payload |
+
+```
+| Header (12 bytes) | Image Payload |
 ```
 
 ## 🧠 Header Bit Definitions
+
 Total: 8 × 12 = 96 bits
 
-The following lists the bit allocation for each field, presented in sequential order. | Field | Bits | Bit Offset (High → Low) | Range/Values ​​| Description |
+The following lists the bit allocation for each field, presented in sequential order.
+
+| Field | Bits | Bit Offset (High → Low) | Range / Values | Description |
 | --- | --- | --- | --- | --- |
 | **T (Type)** | 2 | 94–95 | `10` | Fixed identifier for image frames |
 | **V (Version)** | 2 | 92–93 | `00` | Protocol version (reserved for extensions) |
 | **F (Format)** | 4 | 88–91 | 0–4 | 0=JPG, 1=PNG, 2=WebP, 3=GIF, 4=AVIF |
-| **Q (Quality)** | 8 | 80–87 | 0–255 | Image quality (encoding quality/compression level) |
-| **ID (ImageId)** | 16 | 64–79 | 0–65535 | Unique image identifier (used for fragmentation/reassembly) |
+| **Q (Quality)** | 8 | 80–87 | 0–255 | Image quality (encoding quality / compression level) |
+| **ID (ImageId)** | 16 | 64–79 | 0–65535 | Unique image identifier (used for fragmentation / reassembly) |
 | **W (Width)** | 16 | 48–63 | 0–65535 | Image width (pixels) |
 | **H (Height)** | 16 | 32–47 | 0–65535 | Image height (pixels) |
 | **L (Length)** | 32 | 0–31 | 0–4,294,967,295 | Payload length (bytes) |

@@ -1,0 +1,387 @@
+# Live Avatar Channel 服务端示例
+
+[English](./README.md) | **中文**
+
+这是 Live Avatar Channel 协议**平台/开发者服务端的参考实现**。它支持两种连接模式，演示了如何构建一个处理 Live Avatar 用户交互的 WebSocket 服务端。
+
+## 功能说明
+
+本服务端在两种连接模式中均扮演**服务端角色**：
+
+1. **接受 WebSocket 连接**，地址：`ws://localhost:8080/avatar/ws`
+2. **暴露 REST 会话 API**，地址：`POST http://localhost:8080/api/session/start`（Inbound 模式）
+3. **处理协议消息**，包括会话管理、用户输入和系统事件
+4. **处理音频数据**并执行 ASR（自动语音识别）
+5. **向客户端发送流式 AI 响应**
+6. **处理中断**（用户在 Avatar 说话时打断）
+7. **响应空闲触发**，保持对话活跃
+
+## 连接模式
+
+### Inbound 模式（平台托管服务端）
+
+开发者先调用 REST API，再连接到平台 WebSocket。
+测试工具：**`LiveAvatarServiceInboundSimulator`**
+
+```
+开发者服务端                         数字人服务
+     |                                      |
+     |-- POST /api/session/start ---------->|
+     |<-- { sessionId, wsUrl } -------------|
+     |                                      |
+     |-- WebSocket 连接到 wsUrl ----------->|
+     |-- session.init (sessionId) --------->|
+     |<-- session.ready --------------------|
+     |-- input.text / audio frames -------->|
+     |<-- response.chunk / response.done ---|
+```
+
+### Outbound 模式（开发者托管服务端）
+
+Live Avatar Service 直接连接，无需调用 REST API。
+测试工具：**`LiveAvatarServiceOutboundSimulator`**
+
+```
+live avatar Service  <---WebSocket--->  开发者服务端（本示例）
+     （客户端）                                （服务端）
+     |                                      |
+     |-- POST /api/session/start ---------->|
+     |<-- { sessionId, wsUrl } -------------|
+     |                                      |
+     |-- WebSocket 连接到 wsUrl ----------->|
+     |-- session.init (sessionId) --------->|
+     |<-- session.ready --------------------|
+     |-- input.text / audio frames -------->|
+     |<-- response.chunk / response.done ---|
+```
+
+## 快速开始
+
+### 前置条件
+
+- Java 8 或更高版本
+- Maven 3.6+
+- 本地 Maven 仓库中已安装父项目 `liveavatar-channel-sdk`
+
+### 安装父 SDK
+
+首先安装父 SDK：
+
+```bash
+cd ..
+mvn clean install -DskipTests
+```
+
+### 运行服务端
+
+```bash
+cd liveavatar-channel-server-example
+mvn spring-boot:run
+```
+
+你将看到：
+
+```
+===========================================
+Live Avatar Channel Server started successfully!
+WebSocket endpoint : ws://localhost:8080/avatar/ws
+Inbound session API: POST http://localhost:8080/api/session/start
+===========================================
+```
+
+### 使用模拟器测试
+
+在另一个终端中，根据模式运行对应的模拟器：
+
+**Inbound 模式**（开发者客户端连接平台）：
+
+```bash
+cd ..
+mvn exec:java -Dexec.mainClass="com.newportai.liveavatar.channel.example.LiveAvatarServiceInboundSimulator"
+```
+
+**Outbound 模式**（Live Avatar Service 连接开发者服务端）：
+
+```bash
+cd ..
+mvn exec:java -Dexec.mainClass="com.newportai.liveavatar.channel.example.LiveAvatarServiceOutboundSimulator"
+```
+
+## 项目结构
+
+```
+liveavatar-channel-server-example/
+├── pom.xml
+├── README.md
+└── src/main/java/com/newportai/liveavatar/channel/server/
+    ├── AvatarServerApplication.java          # Spring Boot 入口
+    ├── api/
+    │   └── StartSessionController.java       # POST /api/session/start（Inbound 模式）
+    ├── config/
+    │   └── WebSocketConfig.java              # WebSocket 端点配置
+    ├── handler/
+    │   └── AvatarChannelWebSocketHandler.java # 主消息处理器
+    ├── session/
+    │   ├── SessionManager.java               # 线程安全的会话管理
+    │   └── AvatarSession.java                # 会话状态模型
+    └── service/
+        ├── MessageProcessingService.java     # 业务逻辑处理
+        └── AsrService.java                   # ASR 识别（模拟实现）
+```
+
+## 核心功能
+
+### 1. 会话管理
+
+`SessionManager` 使用 `ConcurrentHashMap` 安全管理多个并发 WebSocket 连接：
+
+```java
+sessionManager.initSession(wsSessionId, avatarSessionId, userId);
+AvatarSession session = sessionManager.getSessionByWsId(wsSessionId);
+```
+
+### 2. 中断处理
+
+当用户在 Avatar 说话时发送新输入：
+
+```java
+// 检测中断条件
+if (avatarSession.hasActiveResponse()) {
+    // 向 Live Avatar Service 发送 control.interrupt
+    Message interrupt = MessageBuilder.controlInterrupt(sessionId);
+    sendMessage(session, interrupt);
+
+    // 取消当前响应任务
+    avatarSession.cancelCurrentResponse();
+}
+```
+
+### 3. ASR 处理（模拟实现）
+
+`AsrService` 演示了如何：
+
+- 接收音频帧
+- 执行 VAD（语音活动检测）
+- 发送部分 ASR 结果（`input.asr.partial`）
+- 发送最终 ASR 结果（`input.asr.final`）
+
+**⚠️ 生产注意事项**：请将模拟实现替换为真实 ASR 服务：
+
+```java
+// TODO: 集成真实 ASR 服务
+```
+
+### 4. 空闲触发处理
+
+当 Live Avatar Service 检测到用户无操作时：
+
+```java
+@Override
+private void handleIdleTrigger(WebSocketSession session, Message message) {
+    IdleTriggerData data = JsonUtil.convertData(message.getData(), IdleTriggerData.class);
+
+    // 业务逻辑：决定是否提示用户
+    String promptText = determinePromptText(data);
+    if (promptText != null) {
+        Message prompt = MessageBuilder.systemPrompt(sessionId, promptText);
+        sendMessage(session, prompt);
+    }
+}
+```
+
+### 5. 流式响应
+
+以块的形式发送 AI 响应，实现自然对话流：
+
+```java
+String[] sentences = splitBySentence(aiResponse);
+for (int i = 0; i < sentences.length; i++) {
+    Message chunk = MessageBuilder.responseChunk(
+        sessionId, requestId, responseId, i, sentences[i]
+    );
+    sendMessage(session, chunk);
+}
+
+Message done = MessageBuilder.responseDone(sessionId, requestId, responseId);
+sendMessage(session, done);
+```
+
+## 配置
+
+编辑 `src/main/resources/application.yml`：
+
+```yaml
+server:
+  port: 8080  # 修改 WebSocket 端口
+
+logging:
+  level:
+    com.newportai.liveavatar.channel.server: DEBUG  # 调整日志级别
+```
+
+## 集成真实服务
+
+### ASR 集成
+
+替换 `AsrService.java` 中的模拟 ASR：
+
+```java
+private AsrResult callRealTimeAsrService(List<byte[]> audioBuffer) {
+    // 示例：阿里云实时 ASR
+    // 1. 初始化 ASR 客户端
+    // 2. 发送音频数据
+    // 3. 接收识别结果
+    // 4. 返回 AsrResult
+}
+```
+
+### AI 集成
+
+替换 `MessageProcessingService.java` 中的模拟 AI：
+
+```java
+private String callAIService(String text) {
+    // 示例：OpenAI GPT API
+    // ChatCompletion completion = openai.createChatCompletion(request);
+    // return completion.getChoices().get(0).getMessage().getContent();
+}
+```
+
+## 协议消息参考
+
+### 接收自 Live Avatar Service 的消息
+
+| Event                | 说明           | 发送时机             |
+|----------------------|----------------|----------------------|
+| `session.init`       | 初始化会话     | 连接建立时           |
+| `input.text`         | 用户文本输入   | 用户输入消息时       |
+| `audio frames`       | 用户语音输入   | 用户说话时（二进制） |
+| `image frames`       | 用户视频输入   | 摄像头输入时（二进制）|
+| `ping`               | 心跳检测       | 定期发送             |
+| `session.state`      | Avatar 状态更新| 状态变化时           |
+| `system.idleTrigger` | 检测到空闲超时 | 无活动后             |
+| `session.closing`    | 连接即将关闭   | 断开连接前           |
+
+### 发送给 Live Avatar Service 的消息
+
+| Event                         | 说明               | 发送时机                      |
+|-------------------------------|--------------------|-------------------------------|
+| `session.ready`               | 会话已初始化       | 收到 `session.init` 后        |
+| `input.asr.partial`           | 部分 ASR 结果      | 语音识别过程中                |
+| `input.asr.final`             | 最终 ASR 结果      | 语音识别完成后                |
+| `input.voice.start`           | 用户语音开始       | VAD 检测到用户开始说话时      |
+| `input.voice.finish`          | 用户语音结束       | VAD 检测到用户停止说话时      |
+| `response.chunk`              | AI 响应块          | 流式响应                      |
+| `response.done`               | 响应完成           | 所有块发送完毕后              |
+| `response.voice.start`        | TTS 响应开始       | TTS 服务响应开始时            |
+| `response.voice.finish`       | TTS 响应结束       | TTS 服务响应结束时            |
+| `response.voice.promptStart`  | TTS 提示响应开始   | TTS 服务提示响应开始时        |
+| `response.voice.promptFinish` | TTS 提示响应结束   | TTS 服务提示响应结束时        |
+| `control.interrupt`           | 中断 Avatar        | 用户打断时                    |
+| `system.prompt`               | 系统提示           | 响应空闲触发时                |
+| `pong`                        | 心跳响应           | 收到 `ping` 后                |
+| `error`                       | 发生错误           | 出错时                        |
+
+## 测试
+
+### 手动测试清单
+
+- [ ] 服务端在 8080 端口成功启动
+- [ ] WebSocket 连接建立成功
+- [ ] session init/ready 握手正常
+- [ ] 文本输入处理正确
+- [ ] 流式响应正常工作
+- [ ] 中断机制正常工作
+- [ ] 音频帧接收并解析正确
+- [ ] ASR 结果发送正确
+- [ ] 空闲触发处理正确
+- [ ] Ping/Pong 心跳正常工作
+- [ ] 多并发会话正常工作
+- [ ] 断开连接和资源清理正常
+
+### 运行测试
+
+```bash
+mvn test
+```
+
+## 故障排除
+
+### 端口被占用
+
+如果 8080 端口已被占用：
+
+```yaml
+# application.yml
+server:
+  port: 8081  # 更换为其他端口
+```
+
+### WebSocket 连接失败
+
+检查：
+
+1. 服务端正在运行（`mvn spring-boot:run`）
+2. URL 正确：`ws://localhost:8080/avatar/ws`
+3. 防火墙没有阻止连接
+
+### 找不到 Session 错误
+
+确保在发送其他消息之前先发送 `session.init`。
+
+## 生产环境注意事项
+
+### 安全性
+
+1. **CORS**：在 `WebSocketConfig.java` 中配置允许的来源：
+
+   ```java
+   registry.addHandler(handler, "/avatar/ws")
+       .setAllowedOrigins("https://facemarket.ai");
+   ```
+
+2. **认证**：添加 token 验证（可选）：
+
+   ```java
+   @Override
+   public void afterConnectionEstablished(WebSocketSession session) {
+       String token = session.getHandshakeHeaders().getFirst("Authorization");
+       if (!validateToken(token)) {
+           session.close(CloseStatus.NOT_ACCEPTABLE);
+       }
+   }
+   ```
+
+### 性能
+
+1. **线程池**：调整 `MessageProcessingService` 中的线程池大小：
+
+   ```java
+   executor.setCorePoolSize(50);
+   executor.setMaxPoolSize(200);
+   ```
+
+2. **音频缓冲区**：实现缓冲区大小限制以防止内存问题
+
+3. **连接限制**：添加每用户/每 IP 的最大连接数限制
+
+### 监控
+
+添加指标和监控：
+
+- WebSocket 连接数
+- 活跃会话数
+- 消息处理延迟
+- ASR 识别成功率
+- 错误率
+
+## License
+
+本示例是 Avatar Channel SDK 项目的一部分。
+
+## 支持
+
+如有问题：
+
+- GitHub Issues: <https://github.com/newportAI-lab/liveavatar-channel/issues>
+- 文档：参见父项目 README

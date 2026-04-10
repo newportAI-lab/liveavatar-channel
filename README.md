@@ -1,5 +1,7 @@
 # Live Avatar Channel SDK
 
+**English** | [中文](./README.zh.md)
+
 A Java SDK for the Live Avatar WebSocket Protocol (Text + Audio/Image)
 
 ## Features
