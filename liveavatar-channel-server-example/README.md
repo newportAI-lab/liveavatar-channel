@@ -1,19 +1,43 @@
 # Live Avatar Channel Server Example
 
-This is a **reference implementation** of a developer server that implements the Live Avatar Channel Protocol. It demonstrates how to build a WebSocket server that accepts connections from live avatar services and processes user interactions.
+This is a **reference implementation of the platform/developer server side** of the Live Avatar Channel Protocol. It supports both connection modes and demonstrates how to build a WebSocket server that processes user interactions with a live avatar.
 
 ## What This Example Does
 
-This server implements a **developer server** (not a client). It:
+This server plays the **server role** in both connection modes:
 
-1. **Accepts WebSocket connections** from live avatar services at `ws://localhost:8080/avatar/ws`
-2. **Handles protocol messages** for session management, user input, and system events
-3. **Processes audio data** and performs ASR (Automatic Speech Recognition)
-4. **Sends streaming AI responses** back to the live avatar service
-5. **Handles interrupts** when users interrupt the avatar mid-speech
-6. **Responds to idle triggers** to keep conversations engaging
+1. **Accepts WebSocket connections** at `ws://localhost:8080/avatar/ws`
+2. **Exposes a REST session API** at `POST http://localhost:8080/api/session/start` (inbound mode)
+3. **Handles protocol messages** for session management, user input, and system events
+4. **Processes audio data** and performs ASR (Automatic Speech Recognition)
+5. **Sends streaming AI responses** back to the connected client
+6. **Handles interrupts** when users interrupt the avatar mid-speech
+7. **Responds to idle triggers** to keep conversations engaging
 
-## Architecture
+## Connection Modes
+
+### Inbound Mode (platform hosts the server)
+
+The developer calls the REST API first, then connects to the platform WebSocket.
+Test with: **`LiveAvatarServiceInboundSimulator`**
+
+```
+Developer App                      This Server (Platform)
+     |                                      |
+     |-- POST /api/session/start ---------->|
+     |<-- { sessionId, wsUrl } -------------|
+     |                                      |
+     |-- WebSocket connect to wsUrl ------->|
+     |-- session.init (sessionId) --------->|
+     |<-- session.ready --------------------|
+     |-- input.text / audio frames -------->|
+     |<-- response.chunk / response.done ---|
+```
+
+### Outbound Mode (developer hosts the server)
+
+The live avatar service connects directly — no REST call needed.
+Test with: **`LiveAvatarServiceOutboundSimulator`**
 
 ```
 live avatar Service  <---WebSocket--->  Developer Server (This Example)
@@ -37,8 +61,8 @@ live avatar Service  <---WebSocket--->  Developer Server (This Example)
         |                                           | (AI Processing)
         |<------- response.chunk -------------------|
         |<------- response.done --------------------|
-        |<------- response.audio.start -------------| 
-        |<------- response.audio.finish -------------| 
+        |<------- response.audio.start -------------|
+        |<------- response.audio.finish -------------|
         |                                           |
         |-------- system.idleTrigger ------------->|
         |                                           | (Business Logic)
@@ -75,18 +99,26 @@ You should see:
 
 ```
 ===========================================
-Avatar Channel Server started successfully!
-WebSocket endpoint: ws://localhost:8080/avatar/ws
+Live Avatar Channel Server started successfully!
+WebSocket endpoint : ws://localhost:8080/avatar/ws
+Inbound session API: POST http://localhost:8080/api/session/start
 ===========================================
 ```
 
 ### Test with Simulator
 
-In another terminal, run the live avatar service simulator:
+In another terminal, run the appropriate simulator for your mode:
 
+**Inbound mode** (developer client connects to platform):
 ```bash
 cd ..
-mvn exec:java -Dexec.mainClass="com.newportai.liveavatar.channel.example.LiveAvatarServiceSimulator"
+mvn exec:java -Dexec.mainClass="com.newportai.liveavatar.channel.example.LiveAvatarServiceInboundSimulator"
+```
+
+**Outbound mode** (live avatar service connects to developer server):
+```bash
+cd ..
+mvn exec:java -Dexec.mainClass="com.newportai.liveavatar.channel.example.LiveAvatarServiceOutboundSimulator"
 ```
 
 ## Project Structure
@@ -97,6 +129,8 @@ liveavatar-channel-server-example/
 ├── README.md
 └── src/main/java/com/newportai/liveavatar/channel/server/
     ├── AvatarServerApplication.java          # Spring Boot entry point
+    ├── api/
+    │   └── StartSessionController.java       # POST /api/session/start (inbound mode)
     ├── config/
     │   └── WebSocketConfig.java              # WebSocket endpoint configuration
     ├── handler/

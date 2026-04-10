@@ -39,9 +39,10 @@ liveavatar-channel/                             # Project Root Directory
 │       │   └── util/                           # Utility Classes
 │       └── test/java/com/newportai/liveavatar/channel/
 │           └── example/                        # Example Code
-│               ├── LiveAvatarServiceSimulator.java    # Live Avatar Service Simulator
-│               ├── WebSocketExample.java              # WebSocket Example
-│               └── AudioProtocolExample.java          # Audio Protocol Example
+│               ├── LiveAvatarServiceInboundSimulator.java   # Developer client simulator (inbound mode)
+│               ├── LiveAvatarServiceOutboundSimulator.java  # Live avatar service simulator (outbound mode)
+│               ├── WebSocketExample.java                    # Minimal inbound mode example
+│               └── AudioProtocolExample.java               # Audio Protocol Example
 └── liveavatar-channel-server-example/              # Server Example Module
 ├── pom.xml                                 # Server Module POM
 ├── README.md                               # Server Implementation Guide
@@ -365,56 +366,74 @@ System.out.println("Response " + responseId + " cancelled");
 
 ## Running the Example
 
-### 1. Start the Developer Server (Spring Boot)
+### 1. Start the Server (Spring Boot)
 
 ```bash
 cd liveavatar-channel-server-example
 mvn spring-boot:run
 ```
 
-The server will start at `ws://localhost:8080/avatar/ws`.
+The server starts at `ws://localhost:8080/avatar/ws` and exposes `POST http://localhost:8080/api/session/start`.
 
-**Server Features:**
-- ✅ Receives WebSocket connections from the live avatar service
-- ✅ Handles `session.init` and responds with `session.ready`
-- ✅ Handles `input.text` and returns `response.chunk`/`done`
-- ✅ Processes audio frames and performs ASR (Automatic Speech Recognition)
+**Server features:**
+- ✅ Inbound: exposes `POST /api/session/start` REST endpoint that returns `sessionId` + `wsUrl`
+- ✅ Outbound: accepts direct WebSocket connections from the live avatar service
+- ✅ Handles `session.init` → responds with `session.ready`
+- ✅ Handles `input.text` → returns `response.chunk` / `response.done`
+- ✅ Processes audio frames and performs ASR
 - ✅ Responds to `system.idleTrigger` by sending `system.prompt`
-- ✅ Detects interruptions and sends `control.interrupt`
-- ✅ Automatically handles native WebSocket ping/pong (Spring handles the response)
+- ✅ Sends `control.interrupt` on new input while a response is active
 
 For details, see: [liveavatar-channel-server-example/README.md](./liveavatar-channel-server-example/README.md)
 
-### 2. Run the Live Avatar Service Simulator (Testing Tool)
+### 2a. Inbound Mode — Developer Client Simulator
 
-Run in a new terminal:
+In inbound mode the developer calls the platform REST API first, then connects as a WebSocket client.
 
 ```bash
 cd liveavatar-channel-sdk
-java -cp "target/test-classes:target/classes:$(mvn dependency:build-classpath -q -Dmdep.outputFile=/dev/stdout)" \
-com.newportai.liveavatar.channel.example.LiveAvatarServiceSimulator
+mvn exec:java -Dexec.mainClass="com.newportai.liveavatar.channel.example.LiveAvatarServiceInboundSimulator"
 ```
 
-**Simulator Features:**
-- ✅ Connects to the developer server as a WebSocket client
-- ✅ Sends `session.init`
-- ✅ Sends `input.text` (user input)
-- ✅ Sends audio frames (simulating speech)
-- ✅ Sends `system.idleTrigger` (simulating idle detection)
-- ✅ Receives `response.chunk`/`done`
-- ✅ Receives `system.prompt`
-- ✅ Automatically sends native WebSocket pings (every 5 seconds via OkHttp)
+**What it does:**
+1. Calls `POST /api/session/start` → receives `sessionId` + `wsUrl`
+2. Connects to the platform WebSocket
+3. Sends `session.init` with the platform-issued `sessionId`
 
-**Interaction Commands:**
-- Enter any text → Sends `input.text`
-- Enter `audio` → Sends test audio frames
-- Enter `idle` → Sends `system.idleTrigger`
-- Enter `state` → Sends `session.state`
-- Enter `quit` → Exits
+**Interaction commands:**
+| Command | Action |
+|---------|--------|
+| any text | Sends `input.text` |
+| `audio` | Sends 20 test PCM audio frames |
+| `interrupt` | Sends `control.interrupt` |
+| `prompt` | Sends `system.prompt` (idle-wake reply) |
+| `quit` | Closes session and exits |
+
+### 2b. Outbound Mode — Live Avatar Service Simulator
+
+In outbound mode the developer hosts the server; the live avatar service connects to it directly.
+
+```bash
+cd liveavatar-channel-sdk
+mvn exec:java -Dexec.mainClass="com.newportai.liveavatar.channel.example.LiveAvatarServiceOutboundSimulator"
+```
+
+**What it does:**
+- Connects directly to `ws://localhost:8080/avatar/ws` (no REST call)
+- Generates its own `sessionId` and sends `session.init`
+
+**Interaction commands:**
+| Command | Action |
+|---------|--------|
+| any text | Sends `input.text` |
+| `audio` | Sends 20 test PCM audio frames |
+| `state` | Sends `session.state: LISTENING` |
+| `idle` | Sends `system.idleTrigger` (120 s idle) |
+| `quit` | Closes session and exits |
 
 ### 3. Running Other Examples
 
-#### WebSocket Client Example
+#### Minimal Inbound Mode Example
 ```bash
 cd liveavatar-channel-sdk
 mvn exec:java -Dexec.mainClass="com.newportai.liveavatar.channel.example.WebSocketExample"

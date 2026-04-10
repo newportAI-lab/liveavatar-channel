@@ -6,16 +6,23 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 /**
  * Live Avatar Channel Server Example Application
  *
- * This is a reference implementation of a developer server that implements
- * the Live Avatar Channel Protocol. It demonstrates how to:
+ * <p>This is a reference implementation of the <b>platform side</b> of the
+ * Live Avatar Channel Protocol. It supports both connection modes:
  *
- * 1. Accept WebSocket connections from live avatar services
- * 2. Handle protocol messages (session, input, response, control, system)
- * 3. Process audio data and perform ASR (Automatic Speech Recognition)
- * 4. Send streaming responses back to the live avatar service
- * 5. Handle interrupts and idle triggers
+ * <h3>Inbound Mode (recommended for quick integration)</h3>
+ * <ol>
+ *   <li>Developer calls {@code POST /api/session/start} — receives {@code sessionId} and
+ *       the WebSocket URL.</li>
+ *   <li>Developer connects to the WebSocket URL and sends {@code session.init}.</li>
+ *   <li>Platform responds with {@code session.ready}; normal protocol continues.</li>
+ * </ol>
+ * REST endpoint: {@code http://localhost:8080/api/session/start}
  *
- * The server listens on ws://localhost:8080/avatar/ws
+ * <h3>Outbound Mode</h3>
+ * <p>Developer hosts their own WebSocket server; the live avatar service connects to it.
+ * The WebSocket handler in this example also serves as a reference for that mode.
+ *
+ * <p>WebSocket endpoint: {@code ws://localhost:8080/avatar/ws}
  */
 @SpringBootApplication
 public class AvatarServerApplication {
@@ -24,7 +31,8 @@ public class AvatarServerApplication {
         SpringApplication.run(AvatarServerApplication.class, args);
         System.out.println("\n===========================================");
         System.out.println("Live Avatar Channel Server started successfully!");
-        System.out.println("WebSocket endpoint: ws://localhost:8080/avatar/ws");
+        System.out.println("WebSocket endpoint : ws://localhost:8080/avatar/ws");
+        System.out.println("Inbound session API: POST http://localhost:8080/api/session/start");
         System.out.println("===========================================\n");
     }
 }

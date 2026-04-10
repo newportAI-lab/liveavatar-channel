@@ -347,6 +347,10 @@ public class AvatarWebSocketClient {
                 listener.onControlInterrupt(message);
                 break;
 
+            case EventType.SYSTEM_IDLE_TRIGGER:
+                listener.onSystemIdleTrigger(message);
+                break;
+
             case EventType.SYSTEM_PROMPT:
                 listener.onSystemPrompt(message);
                 break;

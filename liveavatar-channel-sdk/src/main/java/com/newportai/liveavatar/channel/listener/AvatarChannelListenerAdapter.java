@@ -94,6 +94,10 @@ public abstract class AvatarChannelListenerAdapter implements AvatarChannelListe
     }
 
     @Override
+    public void onSystemIdleTrigger(Message message) {
+    }
+
+    @Override
     public void onSystemPrompt(Message message) {
     }
 

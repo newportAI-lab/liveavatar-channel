@@ -160,6 +160,18 @@ public interface AvatarChannelListener {
     void onControlInterrupt(Message message);
 
     /**
+     * Called when idle trigger is received (system.idleTrigger).
+     *
+     * <p>Sent by the platform when the avatar has been idle for a configured duration.
+     * In <b>inbound mode</b> the developer client receives this over the WebSocket.
+     * The developer may respond with {@code system.prompt} to make the avatar speak,
+     * or ignore it.
+     *
+     * @param message system.idleTrigger message
+     */
+    void onSystemIdleTrigger(Message message);
+
+    /**
      * Called when system prompt is received
      *
      * @param message system.prompt message
