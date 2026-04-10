@@ -289,7 +289,7 @@ It is acceptable to send only the `input.asr.final` event; `input.asr.partial` i
 👉 The subsequent workflow is identical to that of text input.
 
 
-### Speech Input Start/End Detection (The one who provides the TTS service is responsible for sending the messages)
+### Speech Output Start/End Detection (The one who provides the TTS service is responsible for sending the messages)
 #### **Speech Output Started**
 ```plain
 {
