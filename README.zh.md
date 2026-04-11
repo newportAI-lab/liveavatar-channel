@@ -156,18 +156,19 @@ SDK 完整支持协议中定义的所有消息类型：
 
 #### Input 相关
 - `input.text` - 文本输入
-- `input.asr.partial` - ASR 部分识别结果
-- `input.asr.final` - ASR 最终识别结果
-- `input.voice.start` - 用户语音开始
-- `input.voice.finish` - 用户语音结束
+- `input.asr.partial` - ASR 部分识别结果（场景 2A：平台 ASR — 由平台发给开发者）
+- `input.asr.final` - ASR 最终识别结果（场景 2A：平台 ASR — 由平台发给开发者）
+- `input.voice.start` - 语音活动开始（场景 2A：平台 ASR — 由平台发给开发者）
+- `input.voice.finish` - 语音活动结束（场景 2A：平台 ASR — 由平台发给开发者）
+- *（Binary Frame）* - 持续原始音频流（场景 2B：开发者 ASR — 平台转发所有音频，开发者执行 VAD/ASR 并将 `input.voice.*`/`input.asr.*` 回传给平台）
 
 #### Response 相关
 - `response.start` - 响应开始（可选的 TTS 音频配置：speed / volume / mood）；当 TTS 由 Live Avatar Service 管理时，在第一个 chunk 前发送
 - `response.chunk` - 流式响应块
 - `response.done` - 响应完成
 - `response.cancel` - 响应取消
-- `response.voice.start` - TTS 响应开始
-- `response.voice.finish` - TTS 响应结束
+- `response.audio.start` - TTS 输出开始（由提供 TTS 的一方发送）
+- `response.audio.finish` - TTS 输出结束（由提供 TTS 的一方发送）
 - `response.audio.promptStart` - TTS 提示响应开始
 - `response.audio.promptFinish` - TTS 提示响应结束
 
@@ -476,21 +477,45 @@ AvatarWebSocketClient client = new AvatarWebSocketClient(url, new AvatarChannelL
 
 ### 场景三：实时 ASR（语音识别）
 
-处理实时语音识别：
+#### 场景 2A：平台 ASR
+
+平台提供 ASR 时，识别结果由平台下发给开发者，在开发者客户端中处理：
 
 ```java
 @Override
 public void onAsrPartial(Message message) {
-    // 部分识别结果，可用于实时字幕显示
+    // 部分识别结果（平台 → 开发者），可用于实时字幕
     TextData data = JsonUtil.convertData(message.getData(), TextData.class);
     updateSubtitle(data.getText());
 }
 
 @Override
 public void onAsrFinal(Message message) {
-    // 最终识别结果，用于 AI 处理
+    // 最终识别结果（平台 → 开发者），用于 AI 处理
     TextData data = JsonUtil.convertData(message.getData(), TextData.class);
     processUserInput(data.getText());
+}
+```
+
+#### 场景 2B：开发者 ASR / Omni
+
+开发者自提供 ASR 时，平台在会话期间持续将所有音频以原始 Binary Frame 流的形式转发 — 无开始/结束事件，平台不做任何 VAD。开发者在内部执行 VAD 和 ASR，然后将**同样的 `input.voice.*` 和 `input.asr.*` 事件回传给平台**（与场景 2A 方向相反），以保持平台状态机正常流转和对话内容展示。发送 `input.asr.final` 后再发 `response.*`：
+
+```java
+@Override
+public void onAudioFrame(AudioFrame frame) {
+    // 平台持续转发，开发者自己做 VAD + ASR
+    if (vadDetectsVoice(frame)) {
+        if (justStartedSpeaking()) {
+            sendMessage(MessageBuilder.inputVoiceStart(requestId));      // → 平台
+        }
+        accumulateAudio(frame);
+        sendMessage(MessageBuilder.asrPartial(requestId, seq, text));    // → 平台
+    } else if (previouslyVoiceActive()) {
+        sendMessage(MessageBuilder.inputVoiceFinish(requestId));         // → 平台
+        sendMessage(MessageBuilder.asrFinal(requestId, finalText));      // → 平台
+        sendResponseChunks(finalText, requestId);                        // → 平台
+    }
 }
 ```
 

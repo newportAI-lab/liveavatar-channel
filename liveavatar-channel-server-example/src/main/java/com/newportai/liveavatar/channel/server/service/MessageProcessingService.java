@@ -10,6 +10,7 @@ import com.newportai.liveavatar.channel.util.MessageBuilder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 import org.springframework.stereotype.Service;
 import org.springframework.web.socket.BinaryMessage;
@@ -21,12 +22,29 @@ import java.io.IOException;
 import java.util.concurrent.Future;
 
 /**
- * Message processing service for handling business logic
+ * Message processing service for handling business logic.
+ *
+ * <p><b>TTS ownership</b> is controlled by {@code avatar.tts.developer-enabled}:
+ * <ul>
+ *   <li><b>true (Developer TTS):</b> This server owns TTS. After streaming text chunks it
+ *       pushes TTS audio Binary Frames to the platform, wrapped with
+ *       {@code response.audio.start} / {@code response.audio.finish}. {@code response.start}
+ *       is NOT sent.</li>
+ *   <li><b>false (Platform TTS):</b> The platform owns TTS. This server sends
+ *       {@code response.start} (with audio config) so the platform knows how to synthesise
+ *       speech, then sends text chunks only. The platform will send
+ *       {@code response.audio.start} / {@code response.audio.finish} back when audio
+ *       playback starts and ends.</li>
+ * </ul>
  */
 @Service
 public class MessageProcessingService {
 
     private static final Logger logger = LoggerFactory.getLogger(MessageProcessingService.class);
+
+    /** Whether this server (developer) provides TTS. */
+    @Value("${avatar.tts.developer-enabled:true}")
+    private boolean developerTtsEnabled;
 
     @Autowired
     private SessionManager sessionManager;
@@ -74,7 +92,18 @@ public class MessageProcessingService {
     }
 
     /**
-     * Generate streaming response
+     * Generate streaming response.
+     *
+     * <p>TTS ownership determines which signals are sent:
+     * <ul>
+     *   <li><b>Platform TTS</b>: send {@code response.start} (audio config) so the platform
+     *       knows how to synthesise speech, then stream text chunks + {@code response.done}.
+     *       The platform will send {@code response.audio.start/finish} back when it plays
+     *       audio on the avatar.</li>
+     *   <li><b>Developer TTS</b>: stream text chunks + {@code response.done}, then push TTS
+     *       audio Binary Frames wrapped with {@code response.audio.start} /
+     *       {@code response.audio.finish}. Do NOT send {@code response.start}.</li>
+     * </ul>
      */
     private void generateStreamingResponse(WebSocketSession session, AvatarSession avatarSession,
                                              String text, String requestId) throws IOException, InterruptedException, MessageSerializationException {
@@ -86,49 +115,46 @@ public class MessageProcessingService {
 
         String responseId = avatarSession.getActiveResponseId();
 
-        // 3. Send response.start with TTS audio config (only needed when TTS is managed by
-        //    the Live Avatar Service; omit if you are pushing your own TTS audio frames).
-        AudioConfigData audioConfig = new AudioConfigData(1.0, 1.0, "neutral");
-        Message responseStart = MessageBuilder.responseStart(requestId, responseId, audioConfig);
-        sendMessage(session, responseStart);
+        if (!developerTtsEnabled) {
+            // Platform TTS: send audio config so the platform knows how to synthesise speech.
+            // The platform will drive audio playback and send response.audio.start/finish back.
+            AudioConfigData audioConfig = new AudioConfigData(1.0, 1.0, "neutral");
+            Message responseStart = MessageBuilder.responseStart(requestId, responseId, audioConfig);
+            sendMessage(session, responseStart);
+            logger.debug("Sent response.start (platform TTS audio config)");
+        }
 
-        // 4. Stream response chunks or outputting audio if implementing your own TTS
+        // 3. Stream text chunks (transcript)
         for (int i = 0; i < sentences.length; i++) {
-            // Check if interrupted
             if (Thread.currentThread().isInterrupted()) {
                 logger.info("Response streaming interrupted");
                 return;
             }
-
-            Message chunk = MessageBuilder.responseChunk(
-                    requestId,
-                    responseId,
-                    i,
-                    sentences[i]
-            );
+            Message chunk = MessageBuilder.responseChunk(requestId, responseId, i, sentences[i]);
             sendMessage(session, chunk);
-
-            // Simulate AI processing delay
             Thread.sleep(100);
         }
 
-        // 4. Send done message
-        Message done = MessageBuilder.responseDone(
-                requestId,
-                responseId
-        );
+        // 4. Signal text response complete
+        Message done = MessageBuilder.responseDone(requestId, responseId);
         sendMessage(session, done);
 
-        // 5. If outputting audio (optional — omit this block if not implementing TTS):
-        //    Wrap audio frame delivery with response.audio.start / response.audio.finish.
-        Message audioStart = MessageBuilder.responseAudioStart(requestId, responseId);
-        sendMessage(session, audioStart);
-        // TODO: Push TTS audio frames as binary messages here, e.g.:
-        //   for (AudioFrame frame : ttsService.generateAudio(aiResponse)) {
-        //       sendAudioFrame(session, frame);
-        //   }
-        Message audioFinish = MessageBuilder.responseAudioFinish(requestId, responseId);
-        sendMessage(session, audioFinish);
+        if (developerTtsEnabled) {
+            // Developer TTS: this server owns audio synthesis. Push TTS audio Binary Frames
+            // to the platform, wrapped with response.audio.start / response.audio.finish.
+            Message audioStart = MessageBuilder.responseAudioStart(requestId, responseId);
+            sendMessage(session, audioStart);
+            logger.debug("Sent response.audio.start (developer TTS)");
+
+            // TODO: Push TTS audio frames as binary messages here, e.g.:
+            //   for (AudioFrame frame : ttsService.generateAudio(aiResponse)) {
+            //       sendAudioFrame(session, frame);
+            //   }
+
+            Message audioFinish = MessageBuilder.responseAudioFinish(requestId, responseId);
+            sendMessage(session, audioFinish);
+            logger.debug("Sent response.audio.finish (developer TTS)");
+        }
 
         // Mark response as complete
         avatarSession.completeResponse();

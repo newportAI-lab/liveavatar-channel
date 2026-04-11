@@ -11,6 +11,7 @@ import com.newportai.liveavatar.channel.util.MessageBuilder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.springframework.web.socket.BinaryMessage;
 import org.springframework.web.socket.CloseStatus;
@@ -21,16 +22,35 @@ import org.springframework.web.socket.handler.AbstractWebSocketHandler;
 import java.io.IOException;
 
 /**
- * WebSocket handler for Avatar Channel Protocol
- * <p>
- * This handler processes both text (JSON protocol messages) and binary messages.
- * Binary messages from the live avatar service can be either audio frames (user voice input)
- * or image frames (user multimodal input). The developer server never sends image frames back.
+ * WebSocket handler for Avatar Channel Protocol.
+ *
+ * <p>Handles both text (JSON protocol messages) and binary messages. Binary messages from
+ * the live avatar service are either audio frames (user voice input) or image frames
+ * (user multimodal input). The developer server never sends image frames back.
+ *
+ * <p><b>ASR mode</b> is controlled by {@code avatar.asr.developer-enabled}:
+ * <ul>
+ *   <li><b>true (Scenario 2B — Developer ASR / Omni):</b> This server owns VAD + ASR.
+ *       Audio Binary Frames are processed by {@link AsrService}; VAD events and ASR results
+ *       are sent back to the platform. The developer also owns {@code control.interrupt}.</li>
+ *   <li><b>false (Scenario 2A — Platform ASR):</b> The platform owns VAD + ASR and sends
+ *       {@code input.voice.*} / {@code input.asr.*} events as JSON messages. Raw audio
+ *       Binary Frames are not forwarded by the platform in this mode; if any arrive they
+ *       are ignored. This server processes {@code input.text} only.</li>
+ * </ul>
  */
 @Component
 public class AvatarChannelWebSocketHandler extends AbstractWebSocketHandler {
 
     private static final Logger logger = LoggerFactory.getLogger(AvatarChannelWebSocketHandler.class);
+
+    /** Whether the developer (this server) provides ASR (Scenario 2B). */
+    @Value("${avatar.asr.developer-enabled:true}")
+    private boolean developerAsrEnabled;
+
+    /** Whether the developer (this server) provides TTS. */
+    @Value("${avatar.tts.developer-enabled:true}")
+    private boolean developerTtsEnabled;
 
     @Autowired
     private SessionManager sessionManager;
@@ -61,6 +81,37 @@ public class AvatarChannelWebSocketHandler extends AbstractWebSocketHandler {
                 case EventType.INPUT_TEXT:
                     handleInputTextWithInterrupt(session, msg);
                     break;
+                case EventType.INPUT_ASR_FINAL:
+                    // Scenario 2A (Platform ASR): platform sends the final ASR result.
+                    // Treat it identically to input.text — trigger the AI response pipeline.
+                    if (!developerAsrEnabled) {
+                        handleAsrFinalWithInterrupt(session, msg);
+                    } else {
+                        logger.warn("Received input.asr.final but developer ASR is enabled (Scenario 2B) — ignored");
+                    }
+                    break;
+                case EventType.INPUT_VOICE_START:
+                case EventType.INPUT_VOICE_FINISH:
+                case EventType.INPUT_ASR_PARTIAL:
+                    // Scenario 2A: platform sends these as informational events.
+                    // Log them; extend here if you need to react (e.g. display subtitles).
+                    if (!developerAsrEnabled) {
+                        logger.debug("Received {} (Scenario 2A, platform ASR)", msg.getEvent());
+                    } else {
+                        logger.warn("Received {} but developer ASR is enabled (Scenario 2B) — ignored", msg.getEvent());
+                    }
+                    break;
+                case EventType.RESPONSE_AUDIO_START:
+                case EventType.RESPONSE_AUDIO_FINISH:
+                    // Platform TTS: the platform signals when it starts/finishes playing
+                    // audio on the avatar. Log for monitoring; extend here if you need to
+                    // react (e.g. update UI state, track playback duration).
+                    if (!developerTtsEnabled) {
+                        logger.debug("Received {} (platform TTS notification)", msg.getEvent());
+                    } else {
+                        logger.warn("Received {} but developer TTS is enabled — ignored", msg.getEvent());
+                    }
+                    break;
                 case EventType.SESSION_STATE:
                     handleSessionState(session, msg);
                     break;
@@ -90,6 +141,12 @@ public class AvatarChannelWebSocketHandler extends AbstractWebSocketHandler {
             // Peek at T field (bits 7-6 of first byte) to determine frame type
             byte type = (byte) ((frameBytes[0] >> 6) & 0b11);
             if (type == AudioHeader.TYPE_AUDIO) {
+                if (!developerAsrEnabled) {
+                    // Scenario 2A (Platform ASR): the platform owns VAD + ASR and does not
+                    // forward raw audio Binary Frames. Ignore any that arrive.
+                    logger.debug("Developer ASR disabled (Scenario 2A) — ignoring audio frame");
+                    return;
+                }
                 AudioFrame frame = AudioFrame.parse(frameBytes);
                 logger.debug("Parsed audio frame: seq={}, size={}",
                         frame.getHeader().getSequence(), frame.getPayload().length);
@@ -167,13 +224,49 @@ public class AvatarChannelWebSocketHandler extends AbstractWebSocketHandler {
     }
 
     /**
-     * Handle audio frame: manage voice state via VAD and delegate to ASR.
+     * Handle input.asr.final in Scenario 2A (Platform ASR).
      *
-     * <p>Voice state is the sole responsibility of this method:
+     * <p>The platform has finished recognising the user's speech and delivers the final
+     * transcript. This triggers the AI response pipeline exactly like {@code input.text}.
+     * Interrupt logic applies identically.
+     */
+    private void handleAsrFinalWithInterrupt(WebSocketSession session, Message message) throws IOException, MessageSerializationException {
+        AvatarSession avatarSession = sessionManager.getSessionByWsId(session.getId());
+        if (avatarSession == null) {
+            logger.warn("Session not found for input.asr.final");
+            return;
+        }
+
+        TextData input = JsonUtil.convertData(message.getData(), TextData.class);
+        logger.info("Received input.asr.final (Scenario 2A): {}", input.getText());
+
+        if (avatarSession.hasActiveResponse()) {
+            avatarSession.cancelCurrentResponse();
+        }
+
+        Message interrupt = MessageBuilder.controlInterrupt();
+        sendMessage(session, interrupt);
+
+        avatarSession.setCurrentRequestId(message.getRequestId());
+
+        messageProcessingService.processTextInput(session, input.getText(), message.getRequestId());
+    }
+
+    /**
+     * Handle audio frame — only called when {@code avatar.asr.developer-enabled=true}
+     * (Scenario 2B: Developer ASR / Omni).
+     *
+     * <p>In this mode the platform continuously forwards raw audio Binary Frames to the developer.
+     * The developer owns VAD and ASR, and must send the same {@code input.voice.*} and
+     * {@code input.asr.*} events back to the platform so that the platform state machine
+     * stays in sync and conversation content can be displayed correctly.
+     * The developer also owns {@code control.interrupt} in this mode.
+     *
+     * <p>Voice state transitions:
      * <ul>
-     *   <li>silent→speaking: send ONE interrupt (only if response active) + input.voice.start</li>
-     *   <li>speaking→silent: send input.voice.finish and trigger ASR finalization</li>
-     *   <li>continuing speech: accumulate audio + send ASR partials only</li>
+     *   <li>silent→speaking: send {@code control.interrupt} (if response active) + {@code input.voice.start}</li>
+     *   <li>speaking→continuing: accumulate audio and send {@code input.asr.partial} results</li>
+     *   <li>speaking→silent: send {@code input.voice.finish} + {@code input.asr.final}, then trigger response</li>
      * </ul>
      */
     private void handleAudioFrameWithInterrupt(WebSocketSession session, AudioFrame frame) throws IOException, MessageSerializationException {
@@ -202,7 +295,7 @@ public class AvatarChannelWebSocketHandler extends AbstractWebSocketHandler {
                 sendMessage(session, voiceStart);
                 logger.info("Sent input.voice.start: {}", avatarSession.getCurrentRequestId());
             }
-            // Continuing speech: accumulate audio + send partials (no interrupt)
+            // Continuing speech: accumulate audio + send partial ASR results to platform
             asrService.accumulateAudio(session, frame);
 
         } else {

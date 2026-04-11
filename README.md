@@ -156,20 +156,21 @@ The SDK fully supports all message types defined in the protocol:
 
 #### Input-related
 - `input.text` - Text input
-- `input.asr.partial` - ASR partial result
-- `input.asr.final` - ASR final result
-- `input.voice.start` - User voice start
-- `input.voice.finish` - User voice finish
+- `input.asr.partial` - ASR partial result (Scenario 2A: Platform ASR — sent by platform to developer)
+- `input.asr.final` - ASR final result (Scenario 2A: Platform ASR — sent by platform to developer)
+- `input.voice.start` - Voice activity start (Scenario 2A: Platform ASR — sent by platform to developer)
+- `input.voice.finish` - Voice activity end (Scenario 2A: Platform ASR — sent by platform to developer)
+- *(Binary Frames)* - Continuous raw audio stream (Scenario 2B: Developer ASR — platform forwards all audio; developer performs VAD/ASR and sends `input.voice.*`/`input.asr.*` back to platform)
 
 #### Response-related
 - `response.start` - Response start with optional TTS audio config (speed / volume / mood); sent before first chunk when TTS is managed by the Live Avatar Service
 - `response.chunk` - Streaming response chunk
 - `response.done` - Response complete
 - `response.cancel` - Response cancelled
-- `response.voice.start` - TTS response start
-- `response.voice.finish` - TTS response finish
-- `finishresponse.audio.promptStart` - TTS prompt response start
-- `finishresponse.audio.promptFinish` - TTS prompt response finish
+- `response.audio.start` - TTS output started (sent by whichever side provides TTS)
+- `response.audio.finish` - TTS output finished (sent by whichever side provides TTS)
+- `response.audio.promptStart` - TTS prompt response start
+- `response.audio.promptFinish` - TTS prompt response finish
 
 #### Control-related
 - `control.interrupt` - Interruption control
@@ -472,21 +473,45 @@ client.sendMessage(done);
 
 ### Scenario 3: Real-time ASR (Speech Recognition)
 
-Handling real-time speech recognition:
+#### Scenario 2A: Platform ASR
+
+When the platform provides ASR, it sends recognition results to the developer. Handle them in the developer client:
 
 ```java
 @Override
 public void onAsrPartial(Message message) {
-// Partial recognition result; can be used for real-time display
+// Partial recognition result (Platform → Developer); used for real-time subtitles
 TextData data = JsonUtil.convertData(message.getData(), TextData.class);
 updateSubtitle(data.getText());
 }
 
 @Override
 public void onAsrFinal(Message message) {
-// Final recognition result; used for AI processing
+// Final recognition result (Platform → Developer); used for AI processing
 TextData data = JsonUtil.convertData(message.getData(), TextData.class);
 processUserInput(data.getText());
+}
+```
+
+#### Scenario 2B: Developer ASR / Omni
+
+When the developer provides ASR, the platform continuously forwards all session audio as raw Binary Frames — no start/finish events, no VAD on the platform side. The developer runs VAD and ASR internally, then sends the **same `input.voice.*` and `input.asr.*` events back to the platform** (direction reversed vs. 2A) so the platform state machine stays in sync and conversation content can be displayed. After `input.asr.final`, the developer sends `response.*`:
+
+```java
+@Override
+public void onAudioFrame(AudioFrame frame) {
+// Continuous raw audio; developer owns VAD + ASR
+if (vadDetectsVoice(frame)) {
+if (justStartedSpeaking()) {
+sendMessage(MessageBuilder.inputVoiceStart(requestId));      // → platform
+}
+accumulateAudio(frame);
+sendMessage(MessageBuilder.asrPartial(requestId, seq, text)); // → platform
+} else if (previouslyVoiceActive()) {
+sendMessage(MessageBuilder.inputVoiceFinish(requestId));      // → platform
+sendMessage(MessageBuilder.asrFinal(requestId, finalText));   // → platform
+sendResponseChunks(finalText, requestId);                    // → platform
+}
 }
 ```
 

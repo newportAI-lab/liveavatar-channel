@@ -474,19 +474,40 @@ client.sendMessage(promptMsg);
 
 ### 3. 实时 ASR（语音转文字）
 
+**场景 2A — 平台 ASR：** 平台将识别结果下发给开发者。
+
 ```java
 @Override
 public void onAsrPartial(Message message) {
-    // 部分识别结果，用于实时字幕
+    // 部分识别结果（平台 → 开发者），用于实时字幕
     TextData data = JsonUtil.convertData(message.getData(), TextData.class);
     updateSubtitle(data.getText());
 }
 
 @Override
 public void onAsrFinal(Message message) {
-    // 最终识别结果，用于 AI 处理
+    // 最终识别结果（平台 → 开发者），用于 AI 处理
     TextData data = JsonUtil.convertData(message.getData(), TextData.class);
     processUserInput(data.getText());
+}
+```
+
+**场景 2B — 开发者 ASR / Omni：** 平台在会话期间持续转发所有音频为原始 Binary Frame — 无开始/结束事件，平台不做任何 VAD。开发者在内部执行 VAD 和 ASR，并将**同样的 `input.voice.*`/`input.asr.*` 事件回传给平台**（方向相反），保持平台状态机正常流转，再发 `response.*`：
+
+```java
+@Override
+public void onAudioFrame(AudioFrame frame) {
+    // 平台持续转发，开发者自己做 VAD + ASR
+    if (vadDetectsVoice(frame)) {
+        if (justStartedSpeaking()) {
+            sendMessage(MessageBuilder.inputVoiceStart(requestId));      // → 平台
+        }
+        sendMessage(MessageBuilder.asrPartial(requestId, seq, text));    // → 平台
+    } else if (previouslyVoiceActive()) {
+        sendMessage(MessageBuilder.inputVoiceFinish(requestId));         // → 平台
+        sendMessage(MessageBuilder.asrFinal(requestId, finalText));      // → 平台
+        sendResponseChunks(finalText, requestId);
+    }
 }
 ```
 

@@ -156,19 +156,25 @@ if (avatarSession.hasActiveResponse()) {
 }
 ```
 
-### 3. ASR 处理（模拟实现）
+### 3. ASR 处理 — 场景 2B（开发者 ASR / Omni）
 
-`AsrService` 演示了如何：
+本服务端示例实现的是**场景 2B**：平台在会话期间持续将所有音频以原始 Binary Frame 流的形式转发（无开始/结束信号，平台不做 VAD），开发者完全在内部处理 VAD 和 ASR。
 
-- 接收音频帧
-- 执行 VAD（语音活动检测）
-- 发送部分 ASR 结果（`input.asr.partial`）
-- 发送最终 ASR 结果（`input.asr.final`）
+`AsrService` 演示了：
 
-**⚠️ 生产注意事项**：请将模拟实现替换为真实 ASR 服务：
+- 接收平台持续转发的原始音频帧
+- 执行 VAD（语音活动检测）判断语音边界
+- 向平台发送 `input.voice.start` / `input.voice.finish`（驱动平台状态机正常流转）
+- 向平台发送流式 `input.asr.partial` 结果（用于实时字幕展示）
+- 向平台发送最终 `input.asr.final` 结果（推进状态机，写入对话记录）
+- 触发下游 AI 响应流程
+
+**与场景 2A 的关键区别：** 2A 中这些事件由平台发给开发者；2B 中由开发者发给平台 — 事件相同，方向相反。
+
+**⚠️ 生产注意事项**：请将模拟 VAD 和 ASR 替换为真实服务：
 
 ```java
-// TODO: 集成真实 ASR 服务
+// TODO: 集成真实 ASR 服务（如阿里云、OpenAI Whisper）
 ```
 
 ### 4. 空闲触发处理
@@ -249,38 +255,39 @@ private String callAIService(String text) {
 
 ## 协议消息参考
 
-### 接收自 Live Avatar Service 的消息
+### 接收自数字人服务的消息（平台 → 开发者）
 
-| Event                | 说明           | 发送时机             |
-|----------------------|----------------|----------------------|
-| `session.init`       | 初始化会话     | 连接建立时           |
-| `input.text`         | 用户文本输入   | 用户输入消息时       |
-| `audio frames`       | 用户语音输入   | 用户说话时（二进制） |
-| `image frames`       | 用户视频输入   | 摄像头输入时（二进制）|
-| `ping`               | 心跳检测       | 定期发送             |
-| `session.state`      | Avatar 状态更新| 状态变化时           |
-| `system.idleTrigger` | 检测到空闲超时 | 无活动后             |
-| `session.closing`    | 连接即将关闭   | 断开连接前           |
+| Event                 | 说明                              | 发送时机                   |
+|-----------------------|-----------------------------------|----------------------------|
+| `session.init`        | 初始化会话                        | 连接建立时                 |
+| `input.text`          | 用户文本输入                      | 用户输入消息时             |
+| `audio frames`        | 原始用户语音（二进制，场景 2B）   | 会话期间持续转发           |
+| `input.asr.partial`   | 流式 ASR 结果（仅场景 2A）        | 平台 ASR 识别过程中        |
+| `input.asr.final`     | 最终 ASR 结果（仅场景 2A）        | 平台 ASR 识别完成后        |
+| `input.voice.start`   | VAD 语音开始（仅场景 2A）         | 平台 VAD 触发时            |
+| `input.voice.finish`  | VAD 语音结束（仅场景 2A）         | 平台 VAD 触发时            |
+| `image frames`        | 用户视频输入（二进制）            | 摄像头输入时               |
+| `session.state`       | Avatar 状态更新                   | 状态变化时                 |
+| `system.idleTrigger`  | 检测到空闲超时                    | 无活动后                   |
+| `session.closing`     | 连接即将关闭                      | 断开连接前                 |
 
-### 发送给 Live Avatar Service 的消息
+> **场景 2A vs 2B：** 平台 ASR（2A）时，平台执行 ASR/VAD 并将 `input.asr.*` / `input.voice.*` **下发给**开发者。开发者 ASR / Omni（2B）时，平台持续转发原始音频 Binary Frame；开发者执行 VAD + ASR 后将同样的事件**回传给**平台（方向相反），以保持平台状态机正常流转。
 
-| Event                         | 说明               | 发送时机                      |
-|-------------------------------|--------------------|-------------------------------|
-| `session.ready`               | 会话已初始化       | 收到 `session.init` 后        |
-| `input.asr.partial`           | 部分 ASR 结果      | 语音识别过程中                |
-| `input.asr.final`             | 最终 ASR 结果      | 语音识别完成后                |
-| `input.voice.start`           | 用户语音开始       | VAD 检测到用户开始说话时      |
-| `input.voice.finish`          | 用户语音结束       | VAD 检测到用户停止说话时      |
-| `response.chunk`              | AI 响应块          | 流式响应                      |
-| `response.done`               | 响应完成           | 所有块发送完毕后              |
-| `response.voice.start`        | TTS 响应开始       | TTS 服务响应开始时            |
-| `response.voice.finish`       | TTS 响应结束       | TTS 服务响应结束时            |
-| `response.voice.promptStart`  | TTS 提示响应开始   | TTS 服务提示响应开始时        |
-| `response.voice.promptFinish` | TTS 提示响应结束   | TTS 服务提示响应结束时        |
-| `control.interrupt`           | 中断 Avatar        | 用户打断时                    |
-| `system.prompt`               | 系统提示           | 响应空闲触发时                |
-| `pong`                        | 心跳响应           | 收到 `ping` 后                |
-| `error`                       | 发生错误           | 出错时                        |
+### 发送给数字人服务的消息（开发者 → 平台）
+
+| Event                         | 说明                     | 发送时机                        |
+|-------------------------------|--------------------------|---------------------------------|
+| `session.ready`               | 会话已初始化             | 收到 `session.init` 后          |
+| `response.start`              | TTS 配置（可选）         | 使用平台 TTS 时，第一个 chunk 前 |
+| `response.chunk`              | AI 响应块                | 流式响应                        |
+| `response.done`               | 响应完成                 | 所有块发送完毕后                |
+| `response.audio.start`        | TTS 输出开始             | 推送 TTS 音频帧前               |
+| `response.audio.finish`       | TTS 输出结束             | 推送 TTS 音频帧后               |
+| `response.audio.promptStart`  | 空闲提示音频开始         | 推送提示音频帧前                |
+| `response.audio.promptFinish` | 空闲提示音频结束         | 推送提示音频帧后                |
+| `control.interrupt`           | 中断 Avatar              | 有新输入且 Avatar 正在说话时    |
+| `system.prompt`               | 空闲提示文本             | 响应 `system.idleTrigger` 时    |
+| `error`                       | 发生错误                 | 出错时                          |
 
 ## 测试
 

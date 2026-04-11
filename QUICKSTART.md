@@ -480,19 +480,40 @@ client.sendMessage(promptMsg);
 
 ### 3. Real-time ASR (Speech-to-Text)
 
+**Scenario 2A — Platform ASR:** The platform sends recognition results to the developer.
+
 ```java
 @Override
 public void onAsrPartial(Message message) {
-// Partial recognition result, used for real-time subtitles
+// Partial result (Platform → Developer); used for real-time subtitles
 TextData data = JsonUtil.convertData(message.getData(), TextData.class);
 updateSubtitle(data.getText());
 }
 
 @Override
 public void onAsrFinal(Message message) {
-// Final recognition result, used for AI processing
+// Final result (Platform → Developer); used for AI processing
 TextData data = JsonUtil.convertData(message.getData(), TextData.class);
 processUserInput(data.getText());
+}
+```
+
+**Scenario 2B — Developer ASR / Omni:** The platform continuously forwards all session audio as raw Binary Frames — no start/finish events, no platform-side VAD. The developer runs VAD and ASR internally and sends the **same `input.voice.*`/`input.asr.*` events back to the platform** (reversed direction) to keep the platform state machine in sync, then sends `response.*`:
+
+```java
+@Override
+public void onAudioFrame(AudioFrame frame) {
+// Continuous raw audio; developer owns VAD + ASR
+if (vadDetectsVoice(frame)) {
+if (justStartedSpeaking()) {
+sendMessage(MessageBuilder.inputVoiceStart(requestId));      // → platform
+}
+sendMessage(MessageBuilder.asrPartial(requestId, seq, text)); // → platform
+} else if (previouslyVoiceActive()) {
+sendMessage(MessageBuilder.inputVoiceFinish(requestId));      // → platform
+sendMessage(MessageBuilder.asrFinal(requestId, finalText));   // → platform
+sendResponseChunks(finalText, requestId);
+}
 }
 ```
 

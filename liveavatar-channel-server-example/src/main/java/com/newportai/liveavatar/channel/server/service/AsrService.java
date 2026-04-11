@@ -17,21 +17,33 @@ import java.io.IOException;
 import java.util.List;
 
 /**
- * ASR (Automatic Speech Recognition) Service
+ * ASR (Automatic Speech Recognition) Service — Scenario 2B (Developer ASR / Omni)
  *
- * This is a MOCK implementation for demonstration purposes.
- * In production, you should integrate with real ASR services such as:
- * - Alibaba Cloud Real-time ASR: https://help.aliyun.com/document_detail/84428.html
- * - Tencent Cloud ASR: https://cloud.tencent.com/document/product/1093
- * - Baidu ASR: https://ai.baidu.com/tech/speech/asr
+ * <p>This is a MOCK implementation for demonstration purposes.
+ * In production, replace with real ASR services such as:
+ * <ul>
+ *   <li>Alibaba Cloud Real-time ASR</li>
+ *   <li>OpenAI Whisper / Omni</li>
+ * </ul>
+ *
+ * <p><b>Design principle (Scenario 2B — Developer ASR):</b>
+ * The platform continuously forwards raw audio Binary Frames to the developer.
+ * The developer owns the full VAD + ASR pipeline and must send the same
+ * {@code input.voice.*} and {@code input.asr.*} events back to the platform, so that:
+ * <ul>
+ *   <li>The platform state machine transitions correctly (IDLE → LISTENING → THINKING)</li>
+ *   <li>Conversation content (subtitles / transcripts) can be displayed</li>
+ * </ul>
+ * After sending {@code input.asr.final}, the developer processes the recognized text
+ * and replies via {@code response.chunk} / {@code response.done}.
  *
  * <p><b>Voice state is NOT managed here.</b> Voice lifecycle (voiceActive flag,
  * voice.start/finish signals, interrupt logic) is entirely owned by
  * {@code AvatarChannelWebSocketHandler}. This service only:
  * <ol>
  *   <li>Detects voice activity (VAD) on demand</li>
- *   <li>Accumulates audio and sends incremental partial results</li>
- *   <li>Returns the final recognition result when told the utterance is done</li>
+ *   <li>Accumulates audio and sends incremental partial results to the platform</li>
+ *   <li>Sends the final recognition result to the platform and triggers the response pipeline</li>
  * </ol>
  */
 @Service
@@ -58,9 +70,12 @@ public class AsrService {
     }
 
     /**
-     * Accumulate audio and send an incremental partial ASR result.
+     * Accumulate audio and send an incremental partial ASR result to the platform.
      *
      * <p>Call once per audio frame while the user is speaking. Does NOT touch voice state.
+     *
+     * <p>Sending {@code input.asr.partial} to the platform is required in Scenario 2B so
+     * that the platform can display real-time subtitles / transcripts.
      */
     public void accumulateAudio(WebSocketSession session, AudioFrame frame) {
         AvatarSession avatarSession = sessionManager.getSessionByWsId(session.getId());
@@ -71,7 +86,7 @@ public class AsrService {
 
         avatarSession.addAudioBuffer(frame.getPayload());
 
-        // Send incremental partial result (real-time subtitles)
+        // Send incremental partial result to platform (real-time subtitles)
         int buffered = avatarSession.getAudioBuffer().size();
         try {
             Message partialMsg = MessageBuilder.asrPartial(
@@ -88,9 +103,12 @@ public class AsrService {
     /**
      * Finalize ASR for the current utterance.
      *
-     * <p>Called by the handler when VAD detects end-of-speech (after input.voice.finish
-     * has been sent). Sends the final recognition result, clears the audio buffer,
+     * <p>Called by the handler after {@code input.voice.finish} has been sent to the platform.
+     * Sends the final recognition result to the platform, clears the audio buffer,
      * and triggers downstream AI processing.
+     *
+     * <p>Sending {@code input.asr.final} to the platform is required in Scenario 2B so that
+     * the platform state machine can advance (LISTENING → THINKING) and log the conversation.
      *
      * <p>Does NOT touch voice state — that is the handler's responsibility.
      */
@@ -105,6 +123,7 @@ public class AsrService {
         String finalText = recognizeSpeech(buffer);
         logger.info("ASR final: {} frames → \"{}\"", buffer.size(), finalText);
 
+        // Send input.asr.final to the platform — required for state machine and conversation log
         try {
             Message finalMsg = MessageBuilder.asrFinal(
                     avatarSession.getCurrentRequestId(),
