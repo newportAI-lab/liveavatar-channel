@@ -213,7 +213,7 @@ AvatarWebSocketClient client = new AvatarWebSocketClient(wsUrl,
 
             try {
                 // 返回 session.ready
-                Message readyMsg = MessageBuilder.sessionReady(currentSessionId);
+                Message readyMsg = MessageBuilder.sessionReady();
                 clientHolder[0].sendMessage(readyMsg);
             } catch (Exception e) {
                 e.printStackTrace();
@@ -234,7 +234,6 @@ AvatarWebSocketClient client = new AvatarWebSocketClient(wsUrl,
                 String responseId = "res_" + System.currentTimeMillis();
                 for (int i = 0; i < aiResponse.length(); i++) {
                     Message chunk = MessageBuilder.responseChunk(
-                        currentSessionId,
                         message.getRequestId(),
                         responseId,
                         i,
@@ -246,7 +245,6 @@ AvatarWebSocketClient client = new AvatarWebSocketClient(wsUrl,
 
                 // 发送完成信号
                 Message done = MessageBuilder.responseDone(
-                    currentSessionId,
                     message.getRequestId(),
                     responseId
                 );
@@ -269,29 +267,36 @@ client.connect();
 ```java
 // Session 消息
 MessageBuilder.sessionInit(sessionId, userId)
-MessageBuilder.sessionReady(sessionId)
-MessageBuilder.sessionState(sessionId, state, seq)
-MessageBuilder.sessionClose(sessionId, reason)
+MessageBuilder.sessionReady()
+MessageBuilder.sessionState(state, seq)
+MessageBuilder.sessionClose(reason)
 
 // Input 消息
 MessageBuilder.inputText(requestId, text)
-MessageBuilder.asrPartial(sessionId, requestId, seq, text)
-MessageBuilder.asrFinal(sessionId, requestId, text)
+MessageBuilder.inputVoiceStart(requestId)
+MessageBuilder.inputVoiceFinish(requestId)
+MessageBuilder.asrPartial(requestId, seq, text)
+MessageBuilder.asrFinal(requestId, text)
 
 // Response 消息
-MessageBuilder.responseStart(requestId, responseId, audioConfig)  // 可选，在第一个 chunk 前发送
-MessageBuilder.responseChunk(sessionId, requestId, responseId, seq, text)
-MessageBuilder.responseDone(sessionId, requestId, responseId)
-MessageBuilder.responseCancel(sessionId, responseId)
+MessageBuilder.responseStart(requestId, responseId, audioConfig)  // 可选，在第一个 chunk 前发送（仅平台 TTS 时使用）
+MessageBuilder.responseChunk(requestId, responseId, seq, text)
+MessageBuilder.responseDone(requestId, responseId)
+MessageBuilder.responseCancel(responseId)
+MessageBuilder.responseAudioStart(requestId, responseId)
+MessageBuilder.responseAudioFinish(requestId, responseId)
+MessageBuilder.responseAudioPromptStart()
+MessageBuilder.responseAudioPromptFinish()
 
 // Control 消息
-MessageBuilder.controlInterrupt(sessionId)
+MessageBuilder.controlInterrupt()
 
 // System 消息
-MessageBuilder.systemPrompt(sessionId, text)
+MessageBuilder.systemPrompt(text)
+MessageBuilder.systemIdleTrigger(reason, idleTimeMs)
 
 // Error 消息
-MessageBuilder.error(sessionId, requestId, code, message)
+MessageBuilder.error(requestId, code, message)
 ```
 
 ### SessionState - 会话状态枚举
@@ -303,7 +308,6 @@ import com.newportai.liveavatar.channel.model.SessionState;
 
 // 创建状态消息
 Message msg = MessageBuilder.sessionState(
-    sessionId,
     SessionState.SPEAKING.getValue(),
     seq
 );
@@ -460,7 +464,7 @@ mvn exec:java -Dexec.mainClass="com.newportai.liveavatar.channel.example.Session
 
 ```java
 // 用户中断 Live Avatar 说话时
-Message interruptMsg = MessageBuilder.controlInterrupt(sessionId);
+Message interruptMsg = MessageBuilder.controlInterrupt();
 client.sendMessage(interruptMsg);
 ```
 
@@ -468,7 +472,7 @@ client.sendMessage(interruptMsg);
 
 ```java
 // 开发者服务端主动发送提示
-Message promptMsg = MessageBuilder.systemPrompt(sessionId, "您还在吗？");
+Message promptMsg = MessageBuilder.systemPrompt("您还在吗？");
 client.sendMessage(promptMsg);
 ```
 

@@ -89,27 +89,24 @@ sequenceDiagram
     participant RTC as RTC房间 (SFU)
     participant Avatar as 数字人引擎
 
-    %% 1. 鉴权与初始化
-    AppServer->>Platform: /auth/getAuthToken (API Key)
-    Platform->>AppServer: 返回 session_token
-    AppServer->>User: 返回 session_token
-
-    User->>Platform: /session/start
+    %% 1. 会话启动（服务端，API Key 鉴权）
+    User->>AppServer: 请求启动会话
+    AppServer->>Platform: /session/start (API Key)
     Platform->>Avatar: 启动数字人
     Avatar->>RTC: 加入房间
     Avatar->>Platform: 启动完成
-    Platform->>User: 返回 clientRtcToken+sessionId
+    Platform->>AppServer: { sessionId, clientRtcToken, agentWsUrl }
+    AppServer->>User: { sessionId, clientRtcToken }
 
     %% 核心差异高亮：Inbound 模式下的连接发起
     rect rgb(255, 240, 220)
     Note over AppServer, Platform: 【Inbound 核心差异】
-    User->>AppServer: 5a. 通知开发者服务端 (带上sessionId)
-    AppServer-->>Platform: 5b. 建立WebSocket连接 (作为Client)
-    Note right of AppServer: 开发者侧无需公网IP<br/>仅需校验平台证书
+    AppServer-->>Platform: 通过 agentWsUrl 建立 WebSocket 连接
+    Note right of AppServer: agentWsUrl 内嵌一次性 agentToken<br/>（单次有效，绑定 sessionId + appId）<br/>agentWsUrl 不得转发给前端<br/>无需 session_token — AppServer 直接使用 API Key<br/>开发者侧无需公网IP
     end
 
     %% 2. RTC 链路建立
-    User->>RTC: 加入房间
+    User->>RTC: 加入房间 (clientRtcToken)
     User-->>RTC: 发布文本/音频流
 
     %% 3. 核心业务循环
@@ -153,7 +150,7 @@ sequenceDiagram
     %% 核心差异高亮：Outbound 模式下的连接发起
     rect rgb(220, 245, 220)
     Note over Platform, AppServer: 【Outbound 核心差异】
-    Platform-->>AppServer: 5. 建立WebSocket连接 (平台作为Client)
+    Platform-->>AppServer: 5. 建立 WebSocket 连接（平台作为 Client）
     Note left of AppServer: 开发者侧需暴露公网IP/域名<br/>需处理平台握手鉴权
     end
 

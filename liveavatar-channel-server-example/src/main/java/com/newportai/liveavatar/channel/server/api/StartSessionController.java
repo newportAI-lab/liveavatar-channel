@@ -1,7 +1,9 @@
 package com.newportai.liveavatar.channel.server.api;
 
+import com.newportai.liveavatar.channel.server.session.SessionManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -14,12 +16,13 @@ import java.util.UUID;
  *
  * <p><b>Inbound Mode Flow:</b>
  * <ol>
- *   <li>Developer calls {@code POST /api/session/start} and receives a {@code sessionId}
- *       plus the platform WebSocket URL.</li>
- *   <li>Developer connects to the WebSocket URL using the Live Avatar Channel SDK
- *       ({@link com.newportai.liveavatar.channel.client.AvatarWebSocketClient}).</li>
- *   <li>Developer sends {@code session.init} with the obtained {@code sessionId}.</li>
- *   <li>Platform responds with {@code session.ready}; normal protocol continues.</li>
+ *   <li>Platform (caller) sends {@code POST /api/session/start} with API Key and receives
+ *       {@code sessionId}, {@code clientRtcToken}, and {@code agentWsUrl}.</li>
+ *   <li>{@code agentWsUrl} embeds a single-use {@code agentToken} bound to the session.
+ *       It must never be forwarded to the frontend.</li>
+ *   <li>The platform connects to {@code agentWsUrl} as a WebSocket client.</li>
+ *   <li>After connection, the platform sends {@code session.init}; the developer backend
+ *       responds with {@code session.ready}; normal protocol continues.</li>
  * </ol>
  *
  * <p>Compare with <b>Outbound Mode</b>: in outbound mode the developer hosts the WebSocket
@@ -35,20 +38,31 @@ public class StartSessionController {
     @Value("${avatar.ws.base-url:ws://localhost:8080/avatar/ws}")
     private String wsBaseUrl;
 
+    @Autowired
+    private SessionManager sessionManager;
+
     /**
      * Start a new avatar session.
      *
-     * <p>Returns a pre-allocated {@code sessionId} and the WebSocket endpoint URL.
-     * The developer must connect to {@code wsUrl} and send {@code session.init} with
-     * the returned {@code sessionId} to activate the session.
+     * <p>Returns a pre-allocated {@code sessionId}, a {@code clientRtcToken} for the
+     * end-user's RTC connection, and an {@code agentWsUrl} that embeds a single-use
+     * {@code agentToken}. The caller must connect to {@code agentWsUrl} as a WebSocket
+     * client; after connection the platform sends {@code session.init} to activate the session.
      *
-     * @return {@link StartSessionResponse} containing {@code sessionId} and {@code wsUrl}
+     * @return {@link StartSessionResponse} containing {@code sessionId}, {@code clientRtcToken},
+     *         and {@code agentWsUrl}
      */
     @PostMapping("/start")
     public StartSessionResponse start() {
         String sessionId = "sess_" + UUID.randomUUID().toString().replace("-", "").substring(0, 16);
-        logger.info("Issued session ticket: {}", sessionId);
-        return new StartSessionResponse(sessionId, wsBaseUrl);
+        String agentToken = UUID.randomUUID().toString().replace("-", "");
+        String clientRtcToken = "rtc_" + UUID.randomUUID().toString().replace("-", "").substring(0, 16);
+        String agentWsUrl = wsBaseUrl + "?agentToken=" + agentToken;
+
+        sessionManager.registerPendingSession(sessionId, agentToken);
+
+        logger.info("Issued session ticket: sessionId={}", sessionId);
+        return new StartSessionResponse(sessionId, clientRtcToken, agentWsUrl);
     }
 
     /**
@@ -56,19 +70,25 @@ public class StartSessionController {
      */
     public static class StartSessionResponse {
         private final String sessionId;
-        private final String wsUrl;
+        private final String clientRtcToken;
+        private final String agentWsUrl;
 
-        public StartSessionResponse(String sessionId, String wsUrl) {
+        public StartSessionResponse(String sessionId, String clientRtcToken, String agentWsUrl) {
             this.sessionId = sessionId;
-            this.wsUrl = wsUrl;
+            this.clientRtcToken = clientRtcToken;
+            this.agentWsUrl = agentWsUrl;
         }
 
         public String getSessionId() {
             return sessionId;
         }
 
-        public String getWsUrl() {
-            return wsUrl;
+        public String getClientRtcToken() {
+            return clientRtcToken;
+        }
+
+        public String getAgentWsUrl() {
+            return agentWsUrl;
         }
     }
 }

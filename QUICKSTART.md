@@ -208,7 +208,7 @@ currentSessionId = data.getSessionId();
 
 try { 
 //return session.ready 
-Message readyMsg = MessageBuilder.sessionReady(currentSessionId); 
+Message readyMsg = MessageBuilder.sessionReady(); 
 clientHolder[0].sendMessage(readyMsg); 
 } catch (Exception e) { 
 e.printStackTrace(); 
@@ -229,7 +229,6 @@ String aiResponse = callYourAI(userInput);
 String responseId = "res_" + System.currentTimeMillis(); 
 for (int i = 0; i < aiResponse.length(); i++) { 
 Message chunk = MessageBuilder.responseChunk( 
-currentSessionId, 
 message.getRequestId(), 
 responseId, 
 i, 
@@ -241,7 +240,6 @@ Thread.sleep(50); // Simulate streaming delay
 
 //Sending completed 
 Message done = MessageBuilder.responseDone( 
-currentSessionId, 
 message.getRequestId(), 
 responseId 
 ); 
@@ -262,35 +260,41 @@ client.connect();
 ### MessageBuilder - Message builder
 
 ```java
-// Session message
+// Session messages
 MessageBuilder.sessionInit(sessionId, userId)
-MessageBuilder.sessionReady(sessionId)
-MessageBuilder.sessionState(sessionId, state, seq)
-MessageBuilder.sessionClose(sessionId, reason)
+MessageBuilder.sessionReady()
+MessageBuilder.sessionState(state, seq)
+MessageBuilder.sessionClose(reason)
 
-//Input message
+// Input messages
 MessageBuilder.inputText(requestId, text)
-MessageBuilder.asrPartial(sessionId, requestId, seq, text)
-MessageBuilder.asrFinal(sessionId, requestId, text)
+MessageBuilder.inputVoiceStart(requestId)
+MessageBuilder.inputVoiceFinish(requestId)
+MessageBuilder.asrPartial(requestId, seq, text)
+MessageBuilder.asrFinal(requestId, text)
 
-// Response Messages
-MessageBuilder.responseStart(requestId, responseId, audioConfig)  // optional, before first chunk
-MessageBuilder.responseChunk(sessionId, requestId, responseId, seq, text)
-MessageBuilder.responseDone(sessionId, requestId, responseId)
-MessageBuilder.responseCancel(sessionId, responseId)
+// Response messages
+MessageBuilder.responseStart(requestId, responseId, audioConfig)  // optional, before first chunk (platform TTS only)
+MessageBuilder.responseChunk(requestId, responseId, seq, text)
+MessageBuilder.responseDone(requestId, responseId)
+MessageBuilder.responseCancel(responseId)
+MessageBuilder.responseAudioStart(requestId, responseId)
+MessageBuilder.responseAudioFinish(requestId, responseId)
+MessageBuilder.responseAudioPromptStart()
+MessageBuilder.responseAudioPromptFinish()
 
-// Control Messages
-MessageBuilder.controlInterrupt(sessionId)
+// Control messages
+MessageBuilder.controlInterrupt()
 
-// System Messages
-MessageBuilder.systemPrompt(sessionId, text)
+// System messages
+MessageBuilder.systemPrompt(text)
+MessageBuilder.systemIdleTrigger(reason, idleTimeMs)
 
-// Error Messages
-MessageBuilder.error(sessionId, requestId, code, message)
+// Error messages
+MessageBuilder.error(requestId, code, message)
 
-// Heartbeat Messages (WebSocket Only)
-MessageBuilder.ping()
-MessageBuilder.pong()
+// Note: WebSocket heartbeat uses native ping/pong control frames (RFC 6455).
+// No application-layer ping/pong messages are needed.
 ```
 
 ### SessionState - Session State Enum
@@ -302,7 +306,6 @@ import com.newportai.liveavatar.channel.model.SessionState;
 
 // Create a state message
 Message msg = MessageBuilder.sessionState(
-sessionId,
 SessionState.SPEAKING.getValue(),
 seq
 );
@@ -378,9 +381,9 @@ mvn spring-boot:run
 The server starts at `ws://localhost:8080/avatar/ws` and exposes `POST http://localhost:8080/api/session/start`.
 
 **Server features:**
-- ✅ Inbound: exposes `POST /api/session/start` REST endpoint that returns `sessionId` + `wsUrl`
+- ✅ Inbound: exposes `POST /api/session/start` REST endpoint that returns `sessionId` + `clientRtcToken` + `agentWsUrl` (with embedded single-use `agentToken`)
 - ✅ Outbound: accepts direct WebSocket connections from the live avatar service
-- ✅ Handles `session.init` → responds with `session.ready`
+- ✅ Receives `session.init` from platform → responds with `session.ready`
 - ✅ Handles `input.text` → returns `response.chunk` / `response.done`
 - ✅ Processes audio frames and performs ASR
 - ✅ Responds to `system.idleTrigger` by sending `system.prompt`
@@ -398,9 +401,9 @@ mvn exec:java -Dexec.mainClass="com.newportai.liveavatar.channel.example.LiveAva
 ```
 
 **What it does:**
-1. Calls `POST /api/session/start` → receives `sessionId` + `wsUrl`
-2. Connects to the platform WebSocket
-3. Sends `session.init` with the platform-issued `sessionId`
+1. Calls `POST /api/session/start` → receives `sessionId` + `clientRtcToken` + `agentWsUrl`
+2. Connects to the platform WebSocket via `agentWsUrl` (contains single-use `agentToken`)
+3. Receives `session.init` from platform, replies with `session.ready`
 
 **Interaction commands:**
 | Command | Action |
@@ -466,7 +469,7 @@ com.newportai.liveavatar.channel.example.MessageFormatDemo
 
 ```java
 // User interrupts the live avatar while it is speaking
-Message interruptMsg = MessageBuilder.controlInterrupt(sessionId);
+Message interruptMsg = MessageBuilder.controlInterrupt();
 client.sendMessage(interruptMsg);
 ```
 
@@ -474,7 +477,7 @@ client.sendMessage(interruptMsg);
 
 ```java
 // Developer server actively sends a prompt
-Message promptMsg = MessageBuilder.systemPrompt(sessionId, "Are you still there?");
+Message promptMsg = MessageBuilder.systemPrompt("Are you still there?");
 client.sendMessage(promptMsg);
 ```
 

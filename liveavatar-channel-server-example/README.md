@@ -20,17 +20,19 @@ This server plays the **server role** in both connection modes:
 
 ### Inbound Mode (platform hosts the server)
 
-The developer calls the REST API first, then connects to the platform WebSocket.
+The platform calls the REST API first, then connects to the developer WebSocket as a client.
 Test with: **`LiveAvatarServiceInboundSimulator`**
 
 ```
-Developer Server                     live avatar Service 
+Platform (Simulator)                 Developer Server (This Example)
      |                                      |
      |-- POST /api/session/start ---------->|
-     |<-- { sessionId, wsUrl } -------------|
+     |<-- { sessionId,                      |
+     |      clientRtcToken,                 |
+     |      agentWsUrl?agentToken=... } ----|
      |                                      |
-     |-- WebSocket connect to wsUrl ------->|
-     |-- session.init (sessionId) --------->|
+     |-- WebSocket connect to agentWsUrl -->|  (agentToken validated & consumed)
+     |-- session.init (sessionId, userId) ->|
      |<-- session.ready --------------------|
      |-- input.text / audio frames -------->|
      |<-- response.chunk / response.done ---|
@@ -42,14 +44,11 @@ The live avatar service connects directly — no REST call needed.
 Test with: **`LiveAvatarServiceOutboundSimulator`**
 
 ```
-live avatar Service  <---WebSocket--->  Developer Server (This Example)
-     (Client)                                    (Server)
+Platform (Simulator)                 Developer Server (This Example)
+     (WebSocket Client)                       (WebSocket Server)
      |                                      |
-     |-- POST /api/session/start ---------->|
-     |<-- { sessionId, wsUrl } -------------|
-     |                                      |
-     |-- WebSocket connect to wsUrl ------->|
-     |-- session.init (sessionId) --------->|
+     |-- WebSocket connect to /avatar/ws -->|
+     |-- session.init (sessionId, userId) ->|
      |<-- session.ready --------------------|
      |-- input.text / audio frames -------->|
      |<-- response.chunk / response.done ---|
@@ -147,12 +146,12 @@ When the user sends new input while the avatar is speaking:
 ```java
 // Detect interrupt condition
 if (avatarSession.hasActiveResponse()) {
-    // Send control.interrupt to live avatar service
-    Message interrupt = MessageBuilder.controlInterrupt(sessionId);
-    sendMessage(session, interrupt);
-
     // Cancel current response task
     avatarSession.cancelCurrentResponse();
+
+    // Send control.interrupt to live avatar service
+    Message interrupt = MessageBuilder.controlInterrupt();
+    sendMessage(session, interrupt);
 }
 ```
 
@@ -189,7 +188,7 @@ private void handleIdleTrigger(WebSocketSession session, Message message) {
     // Business logic: decide whether to prompt user
     String promptText = determinePromptText(data);
     if (promptText != null) {
-        Message prompt = MessageBuilder.systemPrompt(sessionId, promptText);
+        Message prompt = MessageBuilder.systemPrompt(promptText);
         sendMessage(session, prompt);
     }
 }
@@ -202,13 +201,11 @@ Send AI responses in chunks for natural conversation flow:
 ```java
 String[] sentences = splitBySentence(aiResponse);
 for (int i = 0; i < sentences.length; i++) {
-    Message chunk = MessageBuilder.responseChunk(
-        sessionId, requestId, responseId, i, sentences[i]
-    );
+    Message chunk = MessageBuilder.responseChunk(requestId, responseId, i, sentences[i]);
     sendMessage(session, chunk);
 }
 
-Message done = MessageBuilder.responseDone(sessionId, requestId, responseId);
+Message done = MessageBuilder.responseDone(requestId, responseId);
 sendMessage(session, done);
 ```
 
@@ -334,7 +331,7 @@ Check:
 
 ### Session Not Found Errors
 
-Ensure `session.init` is sent before any other messages.
+Ensure the platform sends `session.init` after the WebSocket connection is established, and that the developer server has replied with `session.ready` before any other messages are exchanged.
 
 ## Production Considerations
 
