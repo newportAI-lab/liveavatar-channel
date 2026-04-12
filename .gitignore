@@ -32,3 +32,4 @@ replay_pid*
 /*/target/
 /liveavatar-channel-server-example/target/
 /liveavatar-channel-sdk/target/
+/.omc

@@ -20,11 +20,11 @@ This server plays the **server role** in both connection modes:
 
 ### Inbound Mode (platform hosts the server)
 
-The platform calls the REST API first, then connects to the developer WebSocket as a client.
+The developer AppServer calls the platform REST API first, then connects to the platform WebSocket as a client.
 Test with: **`LiveAvatarServiceInboundSimulator`**
 
 ```
-Platform (Simulator)                 Developer Server (This Example)
+Developer AppServer (Simulator)      Platform (This Example)
      |                                      |
      |-- POST /api/session/start ---------->|
      |<-- { sessionId,                      |
