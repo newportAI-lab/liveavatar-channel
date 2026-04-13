@@ -28,7 +28,7 @@ Developer AppServer (Simulator)      Platform (This Example)
      |                                      |
      |-- POST /api/session/start ---------->|
      |<-- { sessionId,                      |
-     |      clientRtcToken,                 |
+     |      clientToken,                 |
      |      agentWsUrl?agentToken=... } ----|
      |                                      |
      |-- WebSocket connect to agentWsUrl -->|  (agentToken validated & consumed)

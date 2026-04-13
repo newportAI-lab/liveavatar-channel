@@ -118,10 +118,10 @@ public class LiveAvatarServiceInboundSimulator {
             return;
         }
         String sessionId = sessionInfo[0];
-        String clientRtcToken = sessionInfo[1];
+        String clientToken = sessionInfo[1];
         String agentWsUrl = sessionInfo[2];
         System.out.println("✅ Session ticket received: sessionId=" + sessionId);
-        System.out.println("   clientRtcToken (for end-user RTC): " + clientRtcToken);
+        System.out.println("   clientToken (for end-user RTC): " + clientToken);
         System.out.println("   agentWsUrl (platform connects here, never forward to frontend): " + agentWsUrl);
 
         // ── Step 2: Connect to the platform WebSocket using agentWsUrl ──
@@ -441,7 +441,7 @@ public class LiveAvatarServiceInboundSimulator {
     /**
      * Call the platform REST API to provision a new session.
      *
-     * @return String[]{sessionId, clientRtcToken, agentWsUrl}, or null on failure
+     * @return String[]{sessionId, clientToken, agentWsUrl}, or null on failure
      */
     private static String[] requestSessionFromPlatform() {
         try {
@@ -470,14 +470,14 @@ public class LiveAvatarServiceInboundSimulator {
 
             String body = sb.toString();
             String sessionId = extractJsonField(body, "sessionId");
-            String clientRtcToken = extractJsonField(body, "clientRtcToken");
+            String clientToken = extractJsonField(body, "clientToken");
             String agentWsUrl = extractJsonField(body, "agentWsUrl");
 
             if (sessionId == null || agentWsUrl == null) {
                 System.err.println("Unexpected response from platform: " + body);
                 return null;
             }
-            return new String[]{sessionId, clientRtcToken != null ? clientRtcToken : "", agentWsUrl};
+            return new String[]{sessionId, clientToken != null ? clientToken : "", agentWsUrl};
 
         } catch (Exception e) {
             System.err.println("Failed to call platform API: " + e.getMessage());

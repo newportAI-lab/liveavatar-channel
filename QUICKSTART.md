@@ -381,7 +381,7 @@ mvn spring-boot:run
 The server starts at `ws://localhost:8080/avatar/ws` and exposes `POST http://localhost:8080/api/session/start`.
 
 **Server features:**
-- ✅ Inbound: exposes `POST /api/session/start` REST endpoint that returns `sessionId` + `clientRtcToken` + `agentWsUrl` (with embedded single-use `agentToken`)
+- ✅ Inbound: exposes `POST /api/session/start` REST endpoint that returns `sessionId` + `clientToken` + `agentWsUrl` (with embedded single-use `agentToken`)
 - ✅ Outbound: accepts direct WebSocket connections from the live avatar service
 - ✅ Receives `session.init` from platform → responds with `session.ready`
 - ✅ Handles `input.text` → returns `response.chunk` / `response.done`
@@ -401,7 +401,7 @@ mvn exec:java -Dexec.mainClass="com.newportai.liveavatar.channel.example.LiveAva
 ```
 
 **What it does:**
-1. Calls `POST /api/session/start` → receives `sessionId` + `clientRtcToken` + `agentWsUrl`
+1. Calls `POST /api/session/start` → receives `sessionId` + `clientToken` + `agentWsUrl`
 2. Connects to the platform WebSocket via `agentWsUrl` (contains single-use `agentToken`)
 3. Receives `session.init` from platform, replies with `session.ready`
 

@@ -17,7 +17,7 @@ import java.util.UUID;
  * <p><b>Inbound Mode Flow:</b>
  * <ol>
  *   <li>Platform (caller) sends {@code POST /api/session/start} with API Key and receives
- *       {@code sessionId}, {@code clientRtcToken}, and {@code agentWsUrl}.</li>
+ *       {@code sessionId}, {@code clientToken}, and {@code agentWsUrl}.</li>
  *   <li>{@code agentWsUrl} embeds a single-use {@code agentToken} bound to the session.
  *       It must never be forwarded to the frontend.</li>
  *   <li>The platform connects to {@code agentWsUrl} as a WebSocket client.</li>
@@ -44,25 +44,25 @@ public class StartSessionController {
     /**
      * Start a new avatar session.
      *
-     * <p>Returns a pre-allocated {@code sessionId}, a {@code clientRtcToken} for the
+     * <p>Returns a pre-allocated {@code sessionId}, a {@code clientToken} for the
      * end-user's RTC connection, and an {@code agentWsUrl} that embeds a single-use
      * {@code agentToken}. The caller must connect to {@code agentWsUrl} as a WebSocket
      * client; after connection the platform sends {@code session.init} to activate the session.
      *
-     * @return {@link StartSessionResponse} containing {@code sessionId}, {@code clientRtcToken},
+     * @return {@link StartSessionResponse} containing {@code sessionId}, {@code clientToken},
      *         and {@code agentWsUrl}
      */
     @PostMapping("/start")
     public StartSessionResponse start() {
         String sessionId = "sess_" + UUID.randomUUID().toString().replace("-", "").substring(0, 16);
         String agentToken = UUID.randomUUID().toString().replace("-", "");
-        String clientRtcToken = "rtc_" + UUID.randomUUID().toString().replace("-", "").substring(0, 16);
+        String clientToken = "rtc_" + UUID.randomUUID().toString().replace("-", "").substring(0, 16);
         String agentWsUrl = wsBaseUrl + "?agentToken=" + agentToken;
 
         sessionManager.registerPendingSession(sessionId, agentToken);
 
         logger.info("Issued session ticket: sessionId={}", sessionId);
-        return new StartSessionResponse(sessionId, clientRtcToken, agentWsUrl);
+        return new StartSessionResponse(sessionId, clientToken, agentWsUrl);
     }
 
     /**
@@ -70,12 +70,12 @@ public class StartSessionController {
      */
     public static class StartSessionResponse {
         private final String sessionId;
-        private final String clientRtcToken;
+        private final String clientToken;
         private final String agentWsUrl;
 
-        public StartSessionResponse(String sessionId, String clientRtcToken, String agentWsUrl) {
+        public StartSessionResponse(String sessionId, String clientToken, String agentWsUrl) {
             this.sessionId = sessionId;
-            this.clientRtcToken = clientRtcToken;
+            this.clientToken = clientToken;
             this.agentWsUrl = agentWsUrl;
         }
 
@@ -84,7 +84,7 @@ public class StartSessionController {
         }
 
         public String getClientRtcToken() {
-            return clientRtcToken;
+            return clientToken;
         }
 
         public String getAgentWsUrl() {
