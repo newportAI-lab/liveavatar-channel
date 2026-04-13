@@ -91,7 +91,7 @@ AvatarWebSocketClient client = new AvatarWebSocketClient(wsUrl,
 
 ```xml
 <dependency>
-  <groupId>com.newportai.liveavatar.channel</groupId>
+  <groupId>io.github.newportai-lab</groupId>
   <artifactId>avatar-channel-sdk</artifactId>
   <version>1.0.0</version>
 </dependency>

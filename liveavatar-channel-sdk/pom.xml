@@ -5,7 +5,7 @@
     <modelVersion>4.0.0</modelVersion>
 
     <parent>
-        <groupId>com.newportai.liveavatar.channel</groupId>
+        <groupId>io.github.newportai-lab</groupId>
         <artifactId>liveavatar-channel-parent</artifactId>
         <version>1.0.0-SNAPSHOT</version>
     </parent>
@@ -15,7 +15,31 @@
     <version>1.0.0</version>
     <name>live Avatar Channel SDK</name>
     <description>Java SDK for Real-time Interactive live Avatar WebSocket/Data Channel Protocol</description>
+    <url>https://github.com/newportAI-lab/liveavatar-channel</url>
 
+    <licenses>
+        <license>
+            <name>The Apache License, Version 2.0</name>
+            <url>http://www.apache.org/licenses/LICENSE-2.0.txt</url>
+        </license>
+    </licenses>
+
+    <developers>
+        <developer>
+            <name>luffer</name>
+            <email>lufferfish@gmail.com</email>
+        </developer>
+    </developers>
+
+    <scm>
+        <connection>scm:git:git://github.com/newportAI-lab/liveavatar-channel.git</connection>
+        <developerConnection>scm:git:ssh://github.com:newportAI-lab/liveavatar-channel.git</developerConnection>
+        <url>https://github.com/newportAI-lab/liveavatar-channel/tree/main</url>
+    </scm>
+
+    <properties>
+        <maven.compiler.release>8</maven.compiler.release>
+    </properties>
     <dependencies>
         <!-- JSON Processing -->
         <dependency>
@@ -62,11 +86,49 @@
                 <executions>
                     <execution>
                         <id>attach-sources</id>
+                        <goals><goal>jar-no-fork</goal></goals>
+                    </execution>
+                </executions>
+            </plugin>
+
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-javadoc-plugin</artifactId>
+                <version>3.6.3</version>
+                <executions>
+                    <execution>
+                        <id>attach-javadoc</id>
                         <goals>
                             <goal>jar</goal>
                         </goals>
                     </execution>
                 </executions>
+                <configuration>
+                    <additionalOptions>-Xdoclint:none</additionalOptions>
+                </configuration>
+            </plugin>
+
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-gpg-plugin</artifactId>
+                <version>3.1.0</version>
+                <executions>
+                    <execution>
+                        <id>sign-artifacts</id>
+                        <phase>verify</phase>
+                        <goals><goal>sign</goal></goals>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+                <groupId>org.sonatype.central</groupId>
+                <artifactId>central-publishing-maven-plugin</artifactId>
+                <version>0.4.0</version>
+                <extensions>true</extensions>
+                <configuration>
+                    <publishingServerId>central</publishingServerId>
+                    <tokenAuth>true</tokenAuth>
+                </configuration>
             </plugin>
         </plugins>
     </build>

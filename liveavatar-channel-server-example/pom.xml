@@ -5,7 +5,7 @@
     <modelVersion>4.0.0</modelVersion>
 
     <parent>
-        <groupId>com.newportai.liveavatar.channel</groupId>
+        <groupId>io.github.newportai-lab</groupId>
         <artifactId>liveavatar-channel-parent</artifactId>
         <version>1.0.0-SNAPSHOT</version>
     </parent>
@@ -15,7 +15,9 @@
 
     <name>Live Avatar Channel Server Example</name>
     <description>Reference implementation of a developer server using Live Avatar Channel Protocol</description>
-
+    <properties>
+        <maven.compiler.release>8</maven.compiler.release>
+    </properties>
     <dependencies>
         <!-- Spring Boot WebSocket -->
         <dependency>
@@ -26,7 +28,7 @@
 
         <!-- Avatar Channel SDK -->
         <dependency>
-            <groupId>com.newportai.liveavatar.channel</groupId>
+            <groupId>io.github.newportai-lab</groupId>
             <artifactId>liveavatar-channel-sdk</artifactId>
             <version>1.0.0</version>
         </dependency>
