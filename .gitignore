@@ -33,3 +33,12 @@ replay_pid*
 /liveavatar-channel-server-example/target/
 /liveavatar-channel-sdk/target/
 /.omc
+# Added by code-review-graph
+.code-review-graph/
+/.settings
+.mcp.json
+.project
+liveavatar-channel-server-example/.classpath
+/liveavatar-channel-server-example/.settings
+liveavatar-channel-sdk/.classpath
+/liveavatar-channel-sdk/.settings

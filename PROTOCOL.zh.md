@@ -8,7 +8,7 @@
 
 ## 场景支持考量
 
-1. WebSocket 和 WebRTC Data Channel 使用的文本协议格式保持一致（除了心跳部分）。
+1. WebSocket 和 WebRTC Data Channel 使用的文本协议格式保持一致。
 2. 消息类型语义化，方便理解。
 3. 支持流式数据传输。
 4. 抗乱序。
@@ -50,6 +50,7 @@
 | asr | input.asr |
 | chunk | response.chunk |
 | done | response.done |
+| cancel | response.cancel |
 | interrupt | control.interrupt |
 | prompt | system.prompt |
 | idleTrigger | system.idleTrigger |
@@ -64,9 +65,6 @@
 | --- | --- |
 | partial | input.asr.partial |
 | final | input.asr.final |
-| chunk | response.chunk |
-| done | response.done |
-| cancel | response.cancel |
 
 ---
 
