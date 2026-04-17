@@ -266,6 +266,7 @@ private String callAIService(String text) {
 | `image frames`        | User video input (binary)                 | Camera input                 |
 | `session.state`       | Avatar state update                       | State changes                |
 | `system.idleTrigger`  | Idle timeout detected                     | After inactivity             |
+| `scene.ready`         | Scene loaded, conversation can start (Scenario 4: LiveKit DataChannel) | Forwarded from JS SDK when the client-side scene finishes loading |
 | `session.closing`     | Connection closing                        | Before disconnect            |
 
 > **Scenario 2A vs 2B:** In Platform ASR (2A), the platform runs ASR/VAD and sends `input.asr.*` / `input.voice.*` **to** the developer. In Developer ASR / Omni (2B), the platform continuously forwards raw audio Binary Frames; the developer runs VAD + ASR and sends the same events **back to** the platform (reversed direction) to keep the state machine in sync.

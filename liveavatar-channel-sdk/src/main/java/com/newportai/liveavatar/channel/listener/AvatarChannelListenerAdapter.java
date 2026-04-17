@@ -102,6 +102,10 @@ public abstract class AvatarChannelListenerAdapter implements AvatarChannelListe
     }
 
     @Override
+    public void onSceneReady(Message message) {
+    }
+
+    @Override
     public void onErrorMessage(Message message) {
     }
 

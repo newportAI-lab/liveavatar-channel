@@ -269,6 +269,7 @@ private String callAIService(String text) {
 | `image frames`        | 用户视频输入（二进制）            | 摄像头输入时               |
 | `session.state`       | Avatar 状态更新                   | 状态变化时                 |
 | `system.idleTrigger`  | 检测到空闲超时                    | 无活动后                   |
+| `scene.ready`         | 场景已就绪，对话可开始（场景四：LiveKit DataChannel） | JS SDK 完成场景加载后，由平台转发 |
 | `session.closing`     | 连接即将关闭                      | 断开连接前                 |
 
 > **场景 2A vs 2B：** 平台 ASR（2A）时，平台执行 ASR/VAD 并将 `input.asr.*` / `input.voice.*` **下发给**开发者。开发者 ASR / Omni（2B）时，平台持续转发原始音频 Binary Frame；开发者执行 VAD + ASR 后将同样的事件**回传给**平台（方向相反），以保持平台状态机正常流转。

@@ -212,6 +212,17 @@ public class MessageBuilder {
     }
 
     /**
+     * Create scene.ready message.
+     *
+     * <p>Sent by the JS SDK over the LiveKit DataChannel (Scenario 4) to notify the
+     * Live Avatar Service that the client-side scene has finished loading and the
+     * conversation can begin. Carries no payload.
+     */
+    public static Message sceneReady() {
+        return new Message(EventType.SCENE_READY);
+    }
+
+    /**
      * Serialize message to JSON
      */
     public static String toJson(Message message) throws MessageSerializationException {

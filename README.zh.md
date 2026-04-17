@@ -7,7 +7,7 @@
 ## 功能特性
 
 - 🚀 WebSocket 双向通信（文本消息 + 音频/图像帧）
-- 📨 全面支持文本消息类型（session、input、response、control、system、error）
+- 📨 全面支持文本消息类型（session、input、response、control、system、scene、error）
 - 🔊 支持二进制音频/图像帧协议（Header + Payload）
 - 🔄 流式数据传输，基于序列号的乱序处理
 - 💪 类型安全的消息与音频/图像帧构建器
@@ -178,6 +178,9 @@ SDK 完整支持协议中定义的所有消息类型：
 #### System 相关
 - `system.prompt` - 系统提示（由 response idle 状态触发）
 - `system.idleTrigger` - 空闲触发（检测到无用户交互）
+
+#### Scene 相关（场景四：LiveKit DataChannel）
+- `scene.ready` - 场景已就绪，对话可以开始（由 JS SDK 发送，由 Live Avatar Service 处理）
 
 #### Error
 - `error` - 错误消息

@@ -179,6 +179,18 @@ public interface AvatarChannelListener {
     void onSystemPrompt(Message message);
 
     /**
+     * Called when a scene.ready message is received (Scenario 4 — LiveKit DataChannel).
+     *
+     * <p>Sent by the JS SDK once the client-side scene has finished loading and the
+     * conversation can start. Typically handled by the Live Avatar Service, but the
+     * callback is exposed here so developer-side integrations can observe the signal
+     * when the platform forwards it over WebSocket.
+     *
+     * @param message scene.ready message
+     */
+    void onSceneReady(Message message);
+
+    /**
      * Called when error message is received
      *
      * @param message error message

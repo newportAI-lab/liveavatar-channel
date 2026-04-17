@@ -7,7 +7,7 @@ A Java SDK for the Live Avatar WebSocket Protocol (Text + Audio/Image)
 ## Features
 
 - 🚀 WebSocket Bidirectional Communication (Text Messages + Audio/Image Frames)
-- 📨 Comprehensive Support for Text Message Types (session, input, response, control, system, error)
+- 📨 Comprehensive Support for Text Message Types (session, input, response, control, system, scene, error)
 - 🔊 Support for Binary Audio/Image Frame Protocol (Header + Payload)
 - 🔄 Streamed Data Transmission with Sequence Number-based Out-of-Order Handling
 - 💪 Type-Safe Message and Audio/Image Frame Builders
@@ -178,6 +178,9 @@ The SDK fully supports all message types defined in the protocol:
 #### System-related
 - `system.prompt` - System prompt (triggered by response idle state)
 - `system.idleTrigger` - Idle trigger (detected no user interaction)
+
+#### Scene-related (Scenario 4: LiveKit DataChannel)
+- `scene.ready` - Scene loaded, conversation can start (sent by JS SDK, handled by Live Avatar Service)
 
 #### Error
 - `error` - Error message

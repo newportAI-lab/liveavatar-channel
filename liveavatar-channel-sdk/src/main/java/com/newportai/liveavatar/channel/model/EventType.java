@@ -35,6 +35,10 @@ public class EventType {
     public static final String SYSTEM_PROMPT = "system.prompt";
     public static final String SYSTEM_IDLE_TRIGGER = "system.idleTrigger";
 
+    // Scene events (LiveKit DataChannel / Scenario 4)
+    // Sent by the JS SDK when the scene is ready and the conversation can start.
+    public static final String SCENE_READY = "scene.ready";
+
     // Error events
     public static final String ERROR = "error";
 

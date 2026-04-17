@@ -355,6 +355,10 @@ public class AvatarWebSocketClient {
                 listener.onSystemPrompt(message);
                 break;
 
+            case EventType.SCENE_READY:
+                listener.onSceneReady(message);
+                break;
+
             case EventType.ERROR:
                 listener.onErrorMessage(message);
                 break;

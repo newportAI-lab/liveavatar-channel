@@ -150,6 +150,9 @@ public class AvatarChannelWebSocketHandler extends AbstractWebSocketHandler {
                 case EventType.SESSION_CLOSING:
                     handleSessionClosing(session, msg);
                     break;
+                case EventType.SCENE_READY:
+                    handleSceneReady(session, msg);
+                    break;
                 default:
                     logger.warn("Unknown event type: {}", msg.getEvent());
             }
@@ -425,6 +428,30 @@ public class AvatarChannelWebSocketHandler extends AbstractWebSocketHandler {
     private void handleSessionClosing(WebSocketSession session, Message message) {
         CloseReasonData data = JsonUtil.convertData(message.getData(), CloseReasonData.class);
         logger.info("Session closing: reason={}", data.getReason());
+    }
+
+    /**
+     * Handle scene.ready message (Scenario 4 — LiveKit DataChannel).
+     *
+     * <p>Sent by the JS SDK once the client-side scene has finished loading and the
+     * conversation can start. The message carries no payload. In WebSocket deployments
+     * the Live Avatar Service may forward this signal to the developer backend so the
+     * backend can align its own readiness state (for example, unblocking a greeting
+     * flow that should only run after the UI has rendered).
+     *
+     * <p>This reference implementation simply logs the signal. Extend here to kick off
+     * opening prompts, analytics, or any other scene-ready business logic.
+     */
+    private void handleSceneReady(WebSocketSession session, Message message) {
+        AvatarSession avatarSession = sessionManager.getSessionByWsId(session.getId());
+        if (avatarSession == null) {
+            logger.warn("Received scene.ready but no avatar session is bound to ws={}", session.getId());
+            return;
+        }
+        logger.info("Scene ready for session={} user={}",
+                avatarSession.getSessionId(), avatarSession.getUserId());
+        // TODO: trigger any scene-ready business logic here (e.g. greeting prompt,
+        // analytics event, unblock response pipeline).
     }
 
     /**
