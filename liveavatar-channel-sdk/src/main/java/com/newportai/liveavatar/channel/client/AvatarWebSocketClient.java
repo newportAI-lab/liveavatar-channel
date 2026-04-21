@@ -60,7 +60,7 @@ public class AvatarWebSocketClient {
     /**
      * Create WebSocket client with default configuration
      *
-     * @param url      WebSocket server URL (must be provided by developer)
+     * @param url      WebSocket server URL
      * @param listener event listener
      */
     public AvatarWebSocketClient(String url, AvatarChannelListener listener) {
@@ -75,7 +75,7 @@ public class AvatarWebSocketClient {
     /**
      * Create WebSocket client with custom OkHttpClient
      *
-     * @param url        WebSocket server URL (must be provided by developer)
+     * @param url        WebSocket server URL
      * @param listener   event listener
      * @param httpClient custom OkHttpClient
      */
