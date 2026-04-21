@@ -8,7 +8,7 @@
     <groupId>io.github.newportai-lab</groupId>
     <artifactId>liveavatar-channel-sdk</artifactId>
     <packaging>jar</packaging>
-    <version>1.0.0</version>
+    <version>1.0.1</version>
     <name>live Avatar Channel SDK</name>
     <description>Java SDK for Real-time Interactive live Avatar WebSocket/Data Channel Protocol</description>
     <url>https://github.com/newportAI-lab/liveavatar-channel</url>
