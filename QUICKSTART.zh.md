@@ -389,7 +389,7 @@ mvn spring-boot:run
 - ✅ 处理 `input.text` → 返回 `response.chunk` / `response.done`
 - ✅ 处理音频帧并执行 ASR
 - ✅ 响应 `system.idleTrigger`，发送 `system.prompt`
-- ✅ 有新输入时发送 `control.interrupt`
+- ✅ 有新输入时取消活跃响应任务（平台自动清空 RTC 缓冲区）
 
 详见：[liveavatar-channel-server-example/README.zh.md](./liveavatar-channel-server-example/README.zh.md)
 

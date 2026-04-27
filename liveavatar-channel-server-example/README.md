@@ -141,18 +141,22 @@ AvatarSession session = sessionManager.getSessionByWsId(wsSessionId);
 
 ### 2. Interrupt Handling
 
-When the user sends new input while the avatar is speaking:
+**Text input interrupt** — when the user sends new text while the avatar is speaking, just cancel the local task. The platform clears the RTC buffer automatically when it processes the `input.text` event:
 
 ```java
-// Detect interrupt condition
 if (avatarSession.hasActiveResponse()) {
-    // Cancel current response task
     avatarSession.cancelCurrentResponse();
-
-    // Send control.interrupt to live avatar service
-    Message interrupt = MessageBuilder.controlInterrupt();
-    sendMessage(session, interrupt);
 }
+```
+
+**Voice interrupt (Scenario 2B)** — when the developer detects speech start via VAD, sending `input.voice.start` is sufficient. The platform automatically clears the RTC buffer on receipt:
+
+```java
+if (avatarSession.hasActiveResponse()) {
+    avatarSession.cancelCurrentResponse(); // cancel local task only
+}
+Message voiceStart = MessageBuilder.inputVoiceStart(requestId);
+sendMessage(session, voiceStart); // platform auto-clears RTC buffer
 ```
 
 ### 3. ASR Processing — Scenario 2B (Developer ASR / Omni)
@@ -283,7 +287,7 @@ private String callAIService(String text) {
 | `response.audio.finish`       | TTS output finished        | After pushing TTS audio frames            |
 | `response.audio.promptStart`  | Idle prompt audio started  | Before pushing prompt audio frames        |
 | `response.audio.promptFinish` | Idle prompt audio finished | After pushing prompt audio frames         |
-| `control.interrupt`           | Interrupt avatar           | New input while avatar is speaking        |
+| `control.interrupt`           | Interrupt avatar           | Proactive developer-initiated interrupt (not needed for input-driven flows — platform auto-clears RTC buffer on `input.text` and `input.voice.start`) |
 | `system.prompt`               | Idle prompt text           | Response to `system.idleTrigger`          |
 | `error`                       | Error occurred             | On errors                                 |
 

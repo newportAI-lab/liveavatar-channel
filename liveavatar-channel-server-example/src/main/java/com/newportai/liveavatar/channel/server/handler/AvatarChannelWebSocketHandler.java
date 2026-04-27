@@ -33,7 +33,8 @@ import java.net.URI;
  * <ul>
  *   <li><b>true (Scenario 2B — Developer ASR / Omni):</b> This server owns VAD + ASR.
  *       Audio Binary Frames are processed by {@link AsrService}; VAD events and ASR results
- *       are sent back to the platform. The developer also owns {@code control.interrupt}.</li>
+ *       are sent back to the platform. Sending {@code input.voice.start} is sufficient to
+ *       interrupt playback — the platform auto-clears the RTC buffer on receipt.</li>
  *   <li><b>false (Scenario 2A — Platform ASR):</b> The platform owns VAD + ASR and sends
  *       {@code input.voice.*} / {@code input.asr.*} events as JSON messages. Raw audio
  *       Binary Frames are not forwarded by the platform in this mode; if any arrive they
@@ -238,20 +239,12 @@ public class AvatarChannelWebSocketHandler extends AbstractWebSocketHandler {
         logger.info("Received input.text: {}", input.getText());
 
 
-        // 1. Cancel current response task if there's an active response
         if (avatarSession.hasActiveResponse()) {
             avatarSession.cancelCurrentResponse();
         }
 
-        // 2. Send interrupt signal
-        logger.info("Interrupting current response");
-        Message interrupt = MessageBuilder.controlInterrupt();
-        sendMessage(session, interrupt);
-
-        // 3. Set current request ID
         avatarSession.setCurrentRequestId(message.getRequestId());
 
-        // 4. Process new input
         messageProcessingService.processTextInput(session, input.getText(), message.getRequestId());
     }
 
@@ -276,9 +269,6 @@ public class AvatarChannelWebSocketHandler extends AbstractWebSocketHandler {
             avatarSession.cancelCurrentResponse();
         }
 
-        Message interrupt = MessageBuilder.controlInterrupt();
-        sendMessage(session, interrupt);
-
         avatarSession.setCurrentRequestId(message.getRequestId());
 
         messageProcessingService.processTextInput(session, input.getText(), message.getRequestId());
@@ -292,11 +282,9 @@ public class AvatarChannelWebSocketHandler extends AbstractWebSocketHandler {
      * The developer owns VAD and ASR, and must send the same {@code input.voice.*} and
      * {@code input.asr.*} events back to the platform so that the platform state machine
      * stays in sync and conversation content can be displayed correctly.
-     * The developer also owns {@code control.interrupt} in this mode.
-     *
      * <p>Voice state transitions:
      * <ul>
-     *   <li>silent→speaking: send {@code control.interrupt} (if response active) + {@code input.voice.start}</li>
+     *   <li>silent→speaking: send {@code input.voice.start} (platform auto-clears RTC buffer); cancel local response task if active</li>
      *   <li>speaking→continuing: accumulate audio and send {@code input.asr.partial} results</li>
      *   <li>speaking→silent: send {@code input.voice.finish} + {@code input.asr.final}, then trigger response</li>
      * </ul>
@@ -312,15 +300,15 @@ public class AvatarChannelWebSocketHandler extends AbstractWebSocketHandler {
 
         if (voiceDetected) {
             if (!avatarSession.isVoiceActive()) {
-                // silent → speaking transition: interrupt + voice.start, sent exactly once
+                // silent → speaking transition: send input.voice.start exactly once.
+                // The platform auto-clears the RTC buffer on receiving input.voice.start,
+                // so control.interrupt is not needed here.
                 avatarSession.setVoiceActive(true);
                 avatarSession.setCurrentRequestId("req_" + System.currentTimeMillis());
 
                 if (avatarSession.hasActiveResponse()) {
                     avatarSession.cancelCurrentResponse();
-                    Message interrupt = MessageBuilder.controlInterrupt();
-                    sendMessage(session, interrupt);
-                    logger.info("Voice started, interrupted active response");
+                    logger.info("Voice started, cancelled active local response");
                 }
 
                 Message voiceStart = MessageBuilder.inputVoiceStart(avatarSession.getCurrentRequestId());

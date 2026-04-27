@@ -387,7 +387,7 @@ The server starts at `ws://localhost:8080/avatar/ws` and exposes `POST http://lo
 - ✅ Handles `input.text` → returns `response.chunk` / `response.done`
 - ✅ Processes audio frames and performs ASR
 - ✅ Responds to `system.idleTrigger` by sending `system.prompt`
-- ✅ Sends `control.interrupt` on new input while a response is active
+- ✅ Cancels active response tasks on new input (platform auto-clears RTC buffer)
 
 For details, see: [liveavatar-channel-server-example/README.md](./liveavatar-channel-server-example/README.md)
 

@@ -142,18 +142,22 @@ AvatarSession session = sessionManager.getSessionByWsId(wsSessionId);
 
 ### 2. 中断处理
 
-当用户在 Avatar 说话时发送新输入：
+**文本输入打断** — 用户在 Avatar 说话时发送新文本，只需取消本地任务即可。平台在处理 `input.text` 事件时会自动清空 RTC 缓冲区：
 
 ```java
-// 检测中断条件
 if (avatarSession.hasActiveResponse()) {
-    // 向 Live Avatar Service 发送 control.interrupt
-    Message interrupt = MessageBuilder.controlInterrupt(sessionId);
-    sendMessage(session, interrupt);
-
-    // 取消当前响应任务
     avatarSession.cancelCurrentResponse();
 }
+```
+
+**语音打断（场景 2B）** — 开发者通过 VAD 检测到说话开始时，发送 `input.voice.start` 即可。平台收到后会自动清空 RTC 缓冲区：
+
+```java
+if (avatarSession.hasActiveResponse()) {
+    avatarSession.cancelCurrentResponse(); // 仅取消本地任务
+}
+Message voiceStart = MessageBuilder.inputVoiceStart(requestId);
+sendMessage(session, voiceStart); // 平台自动清空 RTC 缓冲区
 ```
 
 ### 3. ASR 处理 — 场景 2B（开发者 ASR / Omni）
@@ -286,7 +290,7 @@ private String callAIService(String text) {
 | `response.audio.finish`       | TTS 输出结束             | 推送 TTS 音频帧后               |
 | `response.audio.promptStart`  | 空闲提示音频开始         | 推送提示音频帧前                |
 | `response.audio.promptFinish` | 空闲提示音频结束         | 推送提示音频帧后                |
-| `control.interrupt`           | 中断 Avatar              | 有新输入且 Avatar 正在说话时    |
+| `control.interrupt`           | 中断 Avatar              | 开发者主动发起的打断（输入事件驱动的打断无需发送 — 平台收到 `input.text` 和 `input.voice.start` 时会自动清空 RTC 缓冲区）|
 | `system.prompt`               | 空闲提示文本             | 响应 `system.idleTrigger` 时    |
 | `error`                       | 发生错误                 | 出错时                          |
 
