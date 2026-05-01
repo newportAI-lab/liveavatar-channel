@@ -54,6 +54,10 @@ public class AvatarChannelWebSocketHandler extends AbstractWebSocketHandler {
     @Value("${avatar.tts.developer-enabled:true}")
     private boolean developerTtsEnabled;
 
+    /** Connection mode: inbound (developer connects to platform) or outbound (platform connects to developer). */
+    @Value("${avatar.mode:inbound}")
+    private String mode;
+
     @Autowired
     private SessionManager sessionManager;
 
@@ -66,6 +70,13 @@ public class AvatarChannelWebSocketHandler extends AbstractWebSocketHandler {
     @Override
     public void afterConnectionEstablished(WebSocketSession session) throws Exception {
         logger.info("WebSocket connection established: {}", session.getId());
+
+        // Outbound mode: the live avatar service connects TO this server.
+        // No agentToken validation — the platform is authenticated at the network layer.
+        if ("outbound".equals(mode)) {
+            logger.info("Outbound mode: agentToken validation skipped");
+            return;
+        }
 
         // Inbound mode: agentToken is embedded in the URL query string.
         // Validate and consume it (single-use) to authenticate the connecting party.

@@ -7,6 +7,15 @@ spring:
 
 # Avatar Channel configuration
 avatar:
+  # inbound  = Developer connects to platform WS (agentWsUrl). agentToken validation enabled.
+  # outbound = Platform connects to developer WS. agentToken validation skipped.
+  mode: inbound
+
+  # Set to true to route sessions to the sandbox environment (30 free min/month).
+  # Adds X-Env-Sandbox: true header to platform dispatcher API calls.
+  sandbox:
+    enabled: false
+
   asr:
     # true  = Scenario 2B (Developer ASR / Omni): this server owns VAD + ASR.
     #         The platform continuously forwards raw audio Binary Frames; the server
