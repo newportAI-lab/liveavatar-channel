@@ -30,7 +30,7 @@ import java.util.concurrent.atomic.AtomicInteger;
  *
  * <p><b>Features:</b>
  * <ul>
- *   <li>Automatic WebSocket native ping/pong (5-second interval)</li>
+ *   <li>Automatic WebSocket native ping/pong (5 s interval, disconnect after 4 missed pongs)</li>
  *   <li>Automatic reconnection with exponential backoff</li>
  *   <li>Thread-safe message sending</li>
  * </ul>
@@ -66,7 +66,7 @@ public class AvatarWebSocketClient {
     public AvatarWebSocketClient(String url, AvatarChannelListener listener) {
         this(url, listener, new OkHttpClient.Builder()
                 .connectTimeout(10, TimeUnit.SECONDS)
-                .readTimeout(0, TimeUnit.SECONDS)
+                .readTimeout(20, TimeUnit.SECONDS)
                 .writeTimeout(10, TimeUnit.SECONDS)
                 .pingInterval(5, TimeUnit.SECONDS)
                 .build());
