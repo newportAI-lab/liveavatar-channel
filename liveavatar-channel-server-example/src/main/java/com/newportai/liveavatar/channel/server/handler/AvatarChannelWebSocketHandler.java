@@ -20,7 +20,6 @@ import org.springframework.web.socket.WebSocketSession;
 import org.springframework.web.socket.handler.AbstractWebSocketHandler;
 
 import java.io.IOException;
-import java.net.URI;
 
 /**
  * WebSocket handler for Avatar Channel Protocol.
@@ -54,8 +53,8 @@ public class AvatarChannelWebSocketHandler extends AbstractWebSocketHandler {
     @Value("${avatar.tts.developer-enabled:true}")
     private boolean developerTtsEnabled;
 
-    /** Connection mode: inbound (developer connects to platform) or outbound (platform connects to developer). */
-    @Value("${avatar.mode:inbound}")
+    /** Connection mode: {@code outbound} (platform connects to this server). */
+    @Value("${avatar.mode:outbound}")
     private String mode;
 
     @Autowired
@@ -69,42 +68,7 @@ public class AvatarChannelWebSocketHandler extends AbstractWebSocketHandler {
 
     @Override
     public void afterConnectionEstablished(WebSocketSession session) throws Exception {
-        logger.info("WebSocket connection established: {}", session.getId());
-
-        // Outbound mode: the live avatar service connects TO this server.
-        // No agentToken validation — the platform is authenticated at the network layer.
-        if ("outbound".equals(mode)) {
-            logger.info("Outbound mode: agentToken validation skipped");
-            return;
-        }
-
-        // Inbound mode: agentToken is embedded in the URL query string.
-        // Validate and consume it (single-use) to authenticate the connecting party.
-        URI uri = session.getUri();
-        if (uri != null && uri.getQuery() != null) {
-            String agentToken = extractQueryParam(uri.getQuery(), "agentToken");
-            if (agentToken != null) {
-                if (!sessionManager.validateAndConsumeAgentToken(agentToken)) {
-                    logger.warn("Rejected WebSocket connection: invalid or expired agentToken");
-                    session.close(CloseStatus.NOT_ACCEPTABLE);
-                    return;
-                }
-                logger.info("Inbound mode: agentToken validated for session {}", session.getId());
-            }
-        }
-    }
-
-    /**
-     * Extract a single query parameter value from a raw query string.
-     */
-    private String extractQueryParam(String query, String name) {
-        for (String pair : query.split("&")) {
-            String[] kv = pair.split("=", 2);
-            if (kv.length == 2 && name.equals(kv[0])) {
-                return kv[1];
-            }
-        }
-        return null;
+        logger.info("WebSocket connection established: {} (mode={})", session.getId(), mode);
     }
 
     @Override

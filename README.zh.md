@@ -49,30 +49,29 @@ mvn clean install
 
 Live Avatar Channel 协议支持两种 WebSocket 连接模式：
 
-#### Inbound 模式（平台托管服务端）
+#### Inbound 模式（开发者连接平台）
 
-Live Avatar 平台提供 WebSocket 服务端。开发者需要：
-1. 调用平台 REST API `POST /api/session/start` → 获取 `sessionId` + `wsUrl`
-2. 使用 SDK 连接到 `wsUrl`
-3. 发送携带返回 `sessionId` 的 `session.init`
+平台通过 `POST /v1/session/start` 返回 `agentWsUrl`。开发者后端作为 WebSocket **客户端**使用 SDK 连接该地址。无需公网服务器——适合 Serverless 和本地开发。
 
 ```java
-// 第一步：调用 REST API 获取 sessionId + wsUrl（参见 LiveAvatarServiceInboundSimulator）
-// 第二步：使用返回的 wsUrl 进行连接
-AvatarWebSocketClient client = new AvatarWebSocketClient(wsUrl,
+// 第一步：调用 /api/session/start → 获取 sessionId、agentWsUrl
+// 第二步：使用 SDK 连接 agentWsUrl
+AvatarWebSocketClient client = new AvatarWebSocketClient(agentWsUrl,
     new AvatarChannelListenerAdapter() {
         @Override
         public void onConnected() {
-            // 第三步：发送携带平台颁发 sessionId 的 session.init
             client.sendMessage(MessageBuilder.sessionInit(sessionId, userId));
         }
     }
 );
+client.connect();
 ```
 
-#### Outbound 模式（开发者托管服务端）
+**开箱即用的服务**：[`InboundSessionClient.java`](./liveavatar-channel-server-example/src/main/java/com/newportai/liveavatar/channel/server/service/InboundSessionClient.java) — 管理连接、握手和事件分发。
 
-开发者实现 WebSocket 服务端，Live Avatar Service 作为客户端连接到它。
+#### Outbound 模式（平台连接开发者）
+
+开发者实现 WebSocket 服务端，Live Avatar Service 作为客户端连接到它。需要公网可访问的服务器。在 `application.yml` 中设置 `avatar.mode=outbound`。
 
 **完整服务端示例：** [`liveavatar-channel-server-example/`](./liveavatar-channel-server-example/)
 
@@ -82,8 +81,42 @@ AvatarWebSocketClient client = new AvatarWebSocketClient(wsUrl,
 - 如何执行 ASR（自动语音识别）
 - 如何发送流式 AI 响应
 - 如何处理中断和空闲唤醒
+- 通过 REST API 管理会话生命周期（`/api/session/start`、`/api/session/stop`）
 
 参见：[服务端示例 README](./liveavatar-channel-server-example/README.zh.md)
+
+### 会话管理 API
+
+服务端示例提供会话管理的 REST 端点，代理转发至平台调度器：
+
+**启动会话：**
+```bash
+# 新建会话
+curl -X POST http://localhost:8080/api/session/start \
+  -H "Content-Type: application/json" \
+  -d '{"avatarId": "avatar_xxx"}'
+
+# 重连（复用已有会话）
+curl -X POST http://localhost:8080/api/session/start \
+  -H "Content-Type: application/json" \
+  -d '{"avatarId": "avatar_xxx", "sessionId": "sess_xxx"}'
+
+# 指定音色
+curl -X POST http://localhost:8080/api/session/start \
+  -H "Content-Type: application/json" \
+  -d '{"avatarId": "avatar_xxx", "voiceId": "voice_xxx"}'
+```
+
+响应：`{ "sessionId": "sess_xxx", "userToken": "eyJ...", "agentWsUrl": "wss://...", "agentToken": "...", "sfuUrl": "wss://..." }`
+
+**停止会话：**
+```bash
+curl -X POST http://localhost:8080/api/session/stop \
+  -H "Content-Type: application/json" \
+  -d '{"sessionId": "sess_xxx"}'
+```
+
+**沙箱模式** — 在 `application.yml` 中设置 `avatar.sandbox.enabled: true` 可将会话路由至沙箱环境（每月 30 分钟免费）。控制器会自动在所有平台 API 调用中添加 `X-Env-Sandbox: true` 请求头。
 
 ### Maven 依赖
 
@@ -552,8 +585,9 @@ public void onControlInterrupt(Message message) {
 | `WebSocketExample.java` | Inbound | 最简 SDK 用法——调用 REST API、连接、发送输入 |
 | `LiveAvatarServiceInboundSimulator.java` | Inbound | 交互式开发者客户端——调用 REST API 创建会话，然后驱动对话 |
 | `LiveAvatarServiceOutboundSimulator.java` | Outbound | 交互式 Live Avatar Service 客户端——直接连接开发者服务端，发送 `session.init` / `session.state` / `system.idleTrigger` / 音频 |
+| `PlatformInboundSimulator.java` | Inbound（平台端）| 模拟平台端的 Inbound 模式——WS 服务端，负责签发会话和验证 token |
 
-**完整服务端实现（支持两种模式）：** 参见 [`liveavatar-channel-server-example/`](./liveavatar-channel-server-example/) 项目
+**完整服务端实现（支持 outbound、inbound 两种模式）：** 参见 [`liveavatar-channel-server-example/`](./liveavatar-channel-server-example/) 项目
 
 ## 错误处理
 
@@ -647,13 +681,13 @@ mvn spring-boot:run
 
 ### 运行模拟器（测试工具）
 
-**Inbound 模式** — 开发者客户端连接到平台服务端：
+**Inbound 模式** — 开发者连接到平台的 agentWsUrl：
 ```bash
 cd liveavatar-channel-sdk
 mvn exec:java -Dexec.mainClass="com.newportai.liveavatar.channel.example.LiveAvatarServiceInboundSimulator"
 ```
 
-**Outbound 模式** — Live Avatar Service 连接到开发者服务端：
+**Outbound 模式** — 平台连接到开发者服务端：
 ```bash
 cd liveavatar-channel-sdk
 mvn exec:java -Dexec.mainClass="com.newportai.liveavatar.channel.example.LiveAvatarServiceOutboundSimulator"

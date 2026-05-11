@@ -2,49 +2,49 @@
 
 **English** | [中文](./README.zh.md)
 
-This is a **reference implementation of the platform/developer server side** of the Live Avatar Channel Protocol. It supports both connection modes and demonstrates how to build a WebSocket server that processes user interactions with a live avatar.
+This is a **reference implementation of the platform/developer server side** of the Live Avatar Channel Protocol. It supports three connection modes and demonstrates how to build a WebSocket server that processes user interactions with a live avatar.
 
 ## What This Example Does
 
-This server plays the **server role** in both connection modes:
-
-1. **Accepts WebSocket connections** at `ws://localhost:8080/avatar/ws`
-2. **Exposes a REST session API** at `POST http://localhost:8080/api/session/start` (inbound mode)
-3. **Handles protocol messages** for session management, user input, and system events
-4. **Processes audio data** and performs ASR (Automatic Speech Recognition)
-5. **Sends streaming AI responses** back to the connected client
-6. **Handles interrupts** when users interrupt the avatar mid-speech
-7. **Responds to idle triggers** to keep conversations engaging
+1. **Accepts WebSocket connections** at `ws://localhost:8080/avatar/ws` (outbound mode)
+2. **Exposes REST session API** (`POST /api/session/start`, `/api/session/stop`) for session provisioning
+3. **Connects as a WebSocket client** to the platform's `agentWsUrl` (inbound mode)
+4. **Handles protocol messages** for session management, user input, and system events
+5. **Processes audio data** and performs ASR (Automatic Speech Recognition)
+6. **Sends streaming AI responses** back to the connected client
+7. **Handles interrupts** when users interrupt the avatar mid-speech
+8. **Responds to idle triggers** to keep conversations engaging
 
 ## Connection Modes
 
-### Inbound Mode (platform hosts the server)
+This server supports two modes configured via `avatar.mode` in `application.yml`:
 
-The developer AppServer calls the platform REST API first, then connects to the platform WebSocket as a client.
-Test with: **`LiveAvatarServiceInboundSimulator`**
+### Inbound Mode (`avatar.mode=inbound`)
+
+The developer backend calls `POST /api/session/start` to get `agentWsUrl`, then connects to it as a WebSocket **client**. No local WS server needed — matches the integration guide §6.2 flow.
 
 ```
-Developer AppServer (Simulator)      Platform (This Example)
+Developer Backend                  Platform Server
      |                                      |
      |-- POST /api/session/start ---------->|
-     |<-- { sessionId,                      |
-     |      clientToken,                 |
-     |      agentWsUrl?agentToken=... } ----|
+     |<-- { sessionId, userToken,           |
+     |      agentWsUrl, sfuUrl } -----------|
      |                                      |
-     |-- WebSocket connect to agentWsUrl -->|  (agentToken validated & consumed)
-     |-- session.init (sessionId, userId) ->|
-     |<-- session.ready --------------------|
-     |-- input.text / audio frames -------->|
-     |<-- response.chunk / response.done ---|
+     |-- WS connect to agentWsUrl --------->|
+     |<-- session.init ---------------------|
+     |-- session.ready -------------------->|
+     |<-- input.text / input.asr.final -----|
+     |-- response.chunk / response.done --->|
 ```
 
-### Outbound Mode (developer hosts the server)
+Ready-to-use service: [`InboundSessionClient.java`](./src/main/java/com/newportai/liveavatar/channel/server/service/InboundSessionClient.java)
 
-The live avatar service connects directly — no REST call needed.
-Test with: **`LiveAvatarServiceOutboundSimulator`**
+### Outbound Mode (`avatar.mode=outbound`)
+
+The platform connects directly to the developer's WS server — no REST call or token validation needed. Requires a public-facing server.
 
 ```
-Platform (Simulator)                 Developer Server (This Example)
+Platform                          Developer Server (This Example)
      (WebSocket Client)                       (WebSocket Server)
      |                                      |
      |-- WebSocket connect to /avatar/ws -->|
@@ -83,23 +83,55 @@ You should see:
 ```
 ===========================================
 Live Avatar Channel Server started successfully!
-WebSocket endpoint : ws://localhost:8080/avatar/ws
-Inbound session API: POST http://localhost:8080/api/session/start
+Mode: outbound (change via avatar.mode in application.yml)
+WebSocket endpoint: ws://localhost:8080/avatar/ws
+Session API: POST http://localhost:8080/api/session/start
+Session API: POST http://localhost:8080/api/session/stop
 ===========================================
+```
+
+### Session Management API
+
+**Start a session** — proxies to the platform dispatcher:
+
+```bash
+# New session
+curl -X POST http://localhost:8080/api/session/start \
+  -H "Content-Type: application/json" \
+  -d '{"avatarId": "avatar_xxx"}'
+
+# Reconnect (reuse existing session)
+curl -X POST http://localhost:8080/api/session/start \
+  -H "Content-Type: application/json" \
+  -d '{"avatarId": "avatar_xxx", "sessionId": "sess_xxx"}'
+
+# With voice override
+curl -X POST http://localhost:8080/api/session/start \
+  -H "Content-Type: application/json" \
+  -d '{"avatarId": "avatar_xxx", "voiceId": "voice_xxx"}'
+```
+
+Response: `{"sessionId":"sess_xxx","userToken":"eyJ...","agentWsUrl":"wss://...","agentToken":"...","sfuUrl":"wss://..."}`
+
+**Stop a session:**
+```bash
+curl -X POST http://localhost:8080/api/session/stop \
+  -H "Content-Type: application/json" \
+  -d '{"sessionId": "sess_xxx"}'
 ```
 
 ### Test with Simulator
 
 In another terminal, run the appropriate simulator for your mode:
 
-**Inbound mode** (developer client connects to platform):
+**Inbound mode** — developer connects to platform's `agentWsUrl`:
 
 ```bash
 cd ..
 mvn exec:java -Dexec.mainClass="com.newportai.liveavatar.channel.example.LiveAvatarServiceInboundSimulator"
 ```
 
-**Outbound mode** (live avatar service connects to developer server):
+**Outbound mode** — platform connects to this server:
 
 ```bash
 cd ..
@@ -115,7 +147,7 @@ liveavatar-channel-server-example/
 └── src/main/java/com/newportai/liveavatar/channel/server/
     ├── AvatarServerApplication.java          # Spring Boot entry point
     ├── api/
-    │   └── StartSessionController.java       # POST /api/session/start (inbound mode)
+    │   └── StartSessionController.java       # REST API: /api/session/start, /api/session/stop
     ├── config/
     │   └── WebSocketConfig.java              # WebSocket endpoint configuration
     ├── handler/
@@ -124,6 +156,7 @@ liveavatar-channel-server-example/
     │   ├── SessionManager.java               # Thread-safe session management
     │   └── AvatarSession.java                # Session state model
     └── service/
+        ├── InboundSessionClient.java         # Inbound mode: connects to agentWsUrl
         ├── MessageProcessingService.java     # Business logic processing
         └── AsrService.java                   # ASR recognition (mocked)
 ```
@@ -220,6 +253,30 @@ Edit `src/main/resources/application.yml`:
 ```yaml
 server:
   port: 8080  # Change WebSocket port
+
+avatar:
+  # Mode: outbound | inbound
+  mode: outbound
+
+  # Platform API credentials (from console → API Key Management)
+  api:
+    base-url: https://facemarket.ai
+    key: YOUR_API_KEY
+
+  # Default avatar ID
+  id: avatar_xxx
+
+  # Route to sandbox environment (30 free min/month)
+  sandbox:
+    enabled: false
+
+  # ASR mode: true = Developer ASR (Scenario 2B), false = Platform ASR (Scenario 2A)
+  asr:
+    developer-enabled: true
+
+  # TTS mode: true = Developer TTS, false = Platform TTS
+  tts:
+    developer-enabled: true
 
 logging:
   level:
@@ -336,7 +393,7 @@ Check:
 
 ### Session Not Found Errors
 
-Ensure the platform sends `session.init` after the WebSocket connection is established, and that the developer server has replied with `session.ready` before any other messages are exchanged.
+In outbound mode, ensure the client sends `session.init` after the WebSocket connection is established, and the server has replied with `session.ready` before any other messages are exchanged. In inbound mode, verify `avatar.mode=inbound` is set correctly.
 
 ## Production Considerations
 

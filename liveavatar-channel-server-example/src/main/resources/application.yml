@@ -7,9 +7,22 @@ spring:
 
 # Avatar Channel configuration
 avatar:
-  # inbound  = Developer connects to platform WS (agentWsUrl). agentToken validation enabled.
-  # outbound = Platform connects to developer WS. agentToken validation skipped.
-  mode: inbound
+  # Connection mode:
+  #   outbound = Platform connects to this WS server (developer hosts).
+  #              Register wsEndpoint in console. No token validation needed.
+  #   inbound  = Developer connects to platform's agentWsUrl as a WS client.
+  #              Call /api/session/start → get agentWsUrl → AvatarWebSocketClient connects.
+  #              Matches integration guide §6.2. No local WS server needed.
+  mode: outbound
+
+  # Platform dispatcher API
+  api:
+    base-url: https://facemarket.ai
+    # API Key from console → API Key Management. Must be kept server-side only.
+    key: lk_live_WbFb9JZvbAWhReOZ2qPdMmzrHW7puYA5BRAmBxBW9dU
+
+  # Default avatar ID (used when /api/session/start is called without avatarId)
+  id: avatar_01k56rnqaz15fz4t0ha4ja1132
 
   # Set to true to route sessions to the sandbox environment (30 free min/month).
   # Adds X-Env-Sandbox: true header to platform dispatcher API calls.

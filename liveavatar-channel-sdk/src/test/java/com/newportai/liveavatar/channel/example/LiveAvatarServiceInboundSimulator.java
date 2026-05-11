@@ -470,14 +470,14 @@ public class LiveAvatarServiceInboundSimulator {
 
             String body = sb.toString();
             String sessionId = extractJsonField(body, "sessionId");
-            String clientToken = extractJsonField(body, "clientToken");
+            String userToken = extractJsonField(body, "userToken");
             String agentWsUrl = extractJsonField(body, "agentWsUrl");
 
             if (sessionId == null || agentWsUrl == null) {
                 System.err.println("Unexpected response from platform: " + body);
                 return null;
             }
-            return new String[]{sessionId, clientToken != null ? clientToken : "", agentWsUrl};
+            return new String[]{sessionId, userToken != null ? userToken : "", agentWsUrl};
 
         } catch (Exception e) {
             System.err.println("Failed to call platform API: " + e.getMessage());

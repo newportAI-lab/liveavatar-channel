@@ -2,54 +2,53 @@
 
 [English](./README.md) | **中文**
 
-这是 Live Avatar Channel 协议**平台/开发者服务端的参考实现**。它支持两种连接模式，演示了如何构建一个处理 Live Avatar 用户交互的 WebSocket 服务端。
+这是 Live Avatar Channel 协议**平台/开发者服务端的参考实现**。支持两种连接模式，演示了如何构建处理 Live Avatar 用户交互的服务端。
 
 ## 功能说明
 
-本服务端在两种连接模式中均扮演**服务端角色**：
-
-1. **接受 WebSocket 连接**，地址：`ws://localhost:8080/avatar/ws`
-2. **暴露 REST 会话 API**，地址：`POST http://localhost:8080/api/session/start`（Inbound 模式）
-3. **处理协议消息**，包括会话管理、用户输入和系统事件
-4. **处理音频数据**并执行 ASR（自动语音识别）
-5. **向客户端发送流式 AI 响应**
-6. **处理中断**（用户在 Avatar 说话时打断）
-7. **响应空闲触发**，保持对话活跃
+1. **接受 WebSocket 连接**，地址：`ws://localhost:8080/avatar/ws`（outbound 模式）
+2. **暴露 REST 会话 API**（`POST /api/session/start`、`/api/session/stop`）
+3. **作为 WebSocket 客户端**连接平台的 `agentWsUrl`（inbound 模式）
+4. **处理协议消息**，包括会话管理、用户输入和系统事件
+5. **处理音频数据**并执行 ASR（自动语音识别）
+6. **向客户端发送流式 AI 响应**
+7. **处理中断**（用户在 Avatar 说话时打断）
+8. **响应空闲触发**，保持对话活跃
 
 ## 连接模式
 
-### Inbound 模式（平台托管服务端）
+通过 `application.yml` 中的 `avatar.mode` 配置两种模式：
 
-开发者先调用 REST API，再连接到平台 WebSocket。
-测试工具：**`LiveAvatarServiceInboundSimulator`**
+### Inbound 模式（`avatar.mode=inbound`）
+
+开发者后端调用 `POST /api/session/start` 获取 `agentWsUrl`，然后作为 WebSocket **客户端**连接该地址。无需本地 WS 服务端——符合接入文档 §6.2 流程。
 
 ```
-开发者服务端                         数字人服务
+开发者后端                        平台服务端
      |                                      |
      |-- POST /api/session/start ---------->|
-     |<-- { sessionId, wsUrl } -------------|
+     |<-- { sessionId, userToken,           |
+     |      agentWsUrl, sfuUrl } -----------|
      |                                      |
-     |-- WebSocket 连接到 wsUrl ----------->|
-     |-- session.init (sessionId) --------->|
-     |<-- session.ready --------------------|
-     |-- input.text / audio frames -------->|
-     |<-- response.chunk / response.done ---|
+     |-- WS 连接 agentWsUrl --------------->|
+     |<-- session.init ---------------------|
+     |-- session.ready -------------------->|
+     |<-- input.text / input.asr.final -----|
+     |-- response.chunk / response.done --->|
 ```
 
-### Outbound 模式（开发者托管服务端）
+开箱即用的服务：[`InboundSessionClient.java`](./src/main/java/com/newportai/liveavatar/channel/server/service/InboundSessionClient.java)
 
-Live Avatar Service 直接连接，无需调用 REST API。
-测试工具：**`LiveAvatarServiceOutboundSimulator`**
+### Outbound 模式（`avatar.mode=outbound`）
+
+平台直接连接开发者的 WS 服务端——无需 REST 调用或 token 验证。需要公网可访问的服务器。
 
 ```
-live avatar Service  <---WebSocket--->  开发者服务端（本示例）
-     （客户端）                                （服务端）
+平台                              开发者服务端（本示例）
+     （WebSocket 客户端）                  （WebSocket 服务端）
      |                                      |
-     |-- POST /api/session/start ---------->|
-     |<-- { sessionId, wsUrl } -------------|
-     |                                      |
-     |-- WebSocket 连接到 wsUrl ----------->|
-     |-- session.init (sessionId) --------->|
+     |-- WebSocket 连接 /avatar/ws -------->|
+     |-- session.init (sessionId, userId) ->|
      |<-- session.ready --------------------|
      |-- input.text / audio frames -------->|
      |<-- response.chunk / response.done ---|
@@ -84,23 +83,55 @@ mvn spring-boot:run
 ```
 ===========================================
 Live Avatar Channel Server started successfully!
-WebSocket endpoint : ws://localhost:8080/avatar/ws
-Inbound session API: POST http://localhost:8080/api/session/start
+Mode: outbound (change via avatar.mode in application.yml)
+WebSocket endpoint: ws://localhost:8080/avatar/ws
+Session API: POST http://localhost:8080/api/session/start
+Session API: POST http://localhost:8080/api/session/stop
 ===========================================
+```
+
+### 会话管理 API
+
+**启动会话** — 代理转发至平台调度器：
+
+```bash
+# 新建会话
+curl -X POST http://localhost:8080/api/session/start \
+  -H "Content-Type: application/json" \
+  -d '{"avatarId": "avatar_xxx"}'
+
+# 重连（复用已有会话）
+curl -X POST http://localhost:8080/api/session/start \
+  -H "Content-Type: application/json" \
+  -d '{"avatarId": "avatar_xxx", "sessionId": "sess_xxx"}'
+
+# 指定音色
+curl -X POST http://localhost:8080/api/session/start \
+  -H "Content-Type: application/json" \
+  -d '{"avatarId": "avatar_xxx", "voiceId": "voice_xxx"}'
+```
+
+响应：`{"sessionId":"sess_xxx","userToken":"eyJ...","agentWsUrl":"wss://...","agentToken":"...","sfuUrl":"wss://..."}`
+
+**停止会话：**
+```bash
+curl -X POST http://localhost:8080/api/session/stop \
+  -H "Content-Type: application/json" \
+  -d '{"sessionId": "sess_xxx"}'
 ```
 
 ### 使用模拟器测试
 
 在另一个终端中，根据模式运行对应的模拟器：
 
-**Inbound 模式**（开发者客户端连接平台）：
+**Inbound 模式** — 开发者连接到平台的 agentWsUrl：
 
 ```bash
 cd ..
 mvn exec:java -Dexec.mainClass="com.newportai.liveavatar.channel.example.LiveAvatarServiceInboundSimulator"
 ```
 
-**Outbound 模式**（Live Avatar Service 连接开发者服务端）：
+**Outbound 模式** — 平台连接到本服务端：
 
 ```bash
 cd ..
@@ -116,7 +147,7 @@ liveavatar-channel-server-example/
 └── src/main/java/com/newportai/liveavatar/channel/server/
     ├── AvatarServerApplication.java          # Spring Boot 入口
     ├── api/
-    │   └── StartSessionController.java       # POST /api/session/start（Inbound 模式）
+    │   └── StartSessionController.java       # REST API: /api/session/start, /api/session/stop
     ├── config/
     │   └── WebSocketConfig.java              # WebSocket 端点配置
     ├── handler/
@@ -125,6 +156,7 @@ liveavatar-channel-server-example/
     │   ├── SessionManager.java               # 线程安全的会话管理
     │   └── AvatarSession.java                # 会话状态模型
     └── service/
+        ├── InboundSessionClient.java         # Inbound 模式：连接 agentWsUrl
         ├── MessageProcessingService.java     # 业务逻辑处理
         └── AsrService.java                   # ASR 识别（模拟实现）
 ```
@@ -223,6 +255,30 @@ sendMessage(session, done);
 ```yaml
 server:
   port: 8080  # 修改 WebSocket 端口
+
+avatar:
+  # 模式：outbound | inbound
+  mode: outbound
+
+  # 平台 API 凭证（从控制台 → API Key 管理 获取）
+  api:
+    base-url: https://facemarket.ai
+    key: YOUR_API_KEY
+
+  # 默认数字人 ID
+  id: avatar_xxx
+
+  # 路由至沙箱环境（每月 30 分钟免费）
+  sandbox:
+    enabled: false
+
+  # ASR 模式：true = 开发者 ASR（场景 2B），false = 平台 ASR（场景 2A）
+  asr:
+    developer-enabled: true
+
+  # TTS 模式：true = 开发者 TTS，false = 平台 TTS
+  tts:
+    developer-enabled: true
 
 logging:
   level:
@@ -339,7 +395,7 @@ server:
 
 ### 找不到 Session 错误
 
-确保在发送其他消息之前先发送 `session.init`。
+在 outbound 模式下，确保 WebSocket 连接建立后先发送 `session.init`，且服务端已回复 `session.ready` 后再发送其他消息。Inbound 模式下，确保已正确配置 `avatar.mode=inbound`。
 
 ## 生产环境注意事项
 
