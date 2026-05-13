@@ -7,6 +7,7 @@ import com.newportai.liveavatar.channel.model.Message;
 import com.newportai.liveavatar.channel.server.session.AvatarSession;
 import com.newportai.liveavatar.channel.server.session.SessionManager;
 import com.newportai.liveavatar.channel.util.MessageBuilder;
+import com.newportai.liveavatar.channel.util.TextChunker;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -20,6 +21,7 @@ import org.springframework.web.socket.WebSocketSession;
 import javax.annotation.PostConstruct;
 import java.io.IOException;
 import java.util.concurrent.Future;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * Message processing service for handling business logic.
@@ -110,9 +112,7 @@ public class MessageProcessingService {
         // 1. Call AI service (mocked)
         String aiResponse = callAIService(text);
 
-        // 2. Split by sentence (not by character)
-        String[] sentences = splitBySentence(aiResponse);
-
+        // 2. Build response ID and optional response.start
         String responseId = avatarSession.getActiveResponseId();
 
         if (!developerTtsEnabled) {
@@ -124,16 +124,33 @@ public class MessageProcessingService {
             logger.debug("Sent response.start (platform TTS audio config)");
         }
 
-        // 3. Stream text chunks (transcript)
-        for (int i = 0; i < sentences.length; i++) {
+        // 3. Stream text chunks through TextChunker (sentence-level splitting)
+        AtomicInteger seq = new AtomicInteger(0);
+        TextChunker chunker = new TextChunker.Builder()
+                .onFlush(sentence -> {
+                    Message chunk = MessageBuilder.responseChunk(
+                            requestId, responseId, seq.getAndIncrement(), sentence);
+                    try {
+                        sendMessage(session, chunk);
+                    } catch (IOException | MessageSerializationException e) {
+                        throw new RuntimeException("Failed to send response.chunk", e);
+                    }
+                })
+                .build();
+
+        // Simulate LLM token-level streaming by feeding small word groups
+        for (String token : tokenizeForStreaming(aiResponse)) {
             if (Thread.currentThread().isInterrupted()) {
+                chunker.flushRemaining();
+                chunker.close();
                 logger.info("Response streaming interrupted");
                 return;
             }
-            Message chunk = MessageBuilder.responseChunk(requestId, responseId, i, sentences[i]);
-            sendMessage(session, chunk);
+            chunker.process(token);
             Thread.sleep(100);
         }
+        chunker.flushRemaining();
+        chunker.close();
 
         // 4. Signal text response complete
         Message done = MessageBuilder.responseDone(requestId, responseId);
@@ -179,11 +196,25 @@ public class MessageProcessingService {
     }
 
     /**
-     * Split text by sentence (fix the character splitting issue)
+     * Break text into small token groups to simulate LLM token-level streaming.
+     * TextChunker handles the actual sentence boundary detection downstream.
      */
-    private String[] splitBySentence(String text) {
-        // Split by Chinese and English punctuation
-        return text.split("(?<=[。！？.!?])");
+    private static String[] tokenizeForStreaming(String text) {
+        // Split by whitespace boundaries in ~10-char groups to simulate token streaming
+        String[] words = text.split("(?<=\\s)");
+        java.util.List<String> tokens = new java.util.ArrayList<>();
+        StringBuilder buf = new StringBuilder();
+        for (String w : words) {
+            buf.append(w);
+            if (buf.length() >= 10) {
+                tokens.add(buf.toString());
+                buf.setLength(0);
+            }
+        }
+        if (buf.length() > 0) {
+            tokens.add(buf.toString());
+        }
+        return tokens.toArray(new String[0]);
     }
 
     /**
