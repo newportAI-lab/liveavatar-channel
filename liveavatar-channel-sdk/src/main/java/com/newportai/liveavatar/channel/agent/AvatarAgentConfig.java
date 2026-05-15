@@ -58,7 +58,7 @@ public final class AvatarAgentConfig {
         private String avatarId;
         private String baseUrl = "https://facemarket.ai";
         private boolean sandbox;
-        private boolean developerAsr;
+        private boolean developerAsr = true;
         private boolean developerTts;
         private boolean reconnectEnabled = true;
         private String voiceId;   // nullable

@@ -13,8 +13,19 @@ AvatarAgent agent = AvatarAgent.builder()
         .avatarId("avatar_...")
         .build())
     .listener(new AgentListener() {
+        // Voice input (default: Developer ASR) — receive raw audio, run ASR+LLM locally
+        public void onAudioFrame(AudioFrame frame) {
+            String text = yourAsr.recognize(frame);
+            if (text != null) {
+                String reply = yourLLM.chat(text);
+                agent.sendResponseChunk("req_" + System.currentTimeMillis(), reply, 0);
+                agent.sendResponseDone("req_" + System.currentTimeMillis());
+            }
+        }
+
+        // Text input (Platform ASR mode) — user typed or platform transcribed
         public void onTextInput(String text, String requestId) {
-            String reply = callYourAI(text);
+            String reply = yourLLM.chat(text);
             agent.sendResponseChunk(requestId, reply, 0);
             agent.sendResponseDone(requestId);
         }
@@ -31,7 +42,7 @@ SessionInfo info = agent.start();
 
 - **One-call start** — REST + WS + handshake in `agent.start()`
 - **Simple listener** — 9 callbacks, only `onTextInput` required
-- **Platform ASR + Platform TTS** by default — just handle text in, text out
+- **Developer ASR + Platform TTS** by default — receive raw audio, run ASR+LLM locally, send text back
 - **Developer ASR / TTS** available — full send API for all 4 mode combos
 - **Auto-reconnect** — exponential backoff, enabled by default
 - **Native ping/pong** — RFC 6455, handled by OkHttp
@@ -100,7 +111,7 @@ AvatarAgentConfig.builder()
     .avatarId("avatar_...")         // required
     .baseUrl("https://facemarket.ai")  // default
     .sandbox(false)                 // true = X-Env-Sandbox header
-    .developerAsr(false)            // true = Developer ASR / Omni
+    .developerAsr(true)             // true = Developer ASR / Omni (default)
     .developerTts(false)            // true = Developer TTS
     .reconnectEnabled(true)
     .voiceId("voice_...")           // optional voice override
@@ -120,9 +131,9 @@ AvatarAgentConfig.builder()
 
 | Config | Receive via AgentListener | Send via AvatarAgent |
 |--------|--------------------------|---------------------|
-| **Platform ASR + Platform TTS** (default) | `onTextInput` | `sendResponseChunk`, `sendResponseDone` |
+| **Developer ASR + Platform TTS** (default) | `onAudioFrame` | `sendVoiceStart`, `sendAsrPartial`, `sendAsrFinal` → `sendResponseChunk`, `sendResponseDone` |
 | Platform ASR + Developer TTS | `onTextInput` | `sendResponseAudioStart`, `sendAudioFrame`, `sendResponseAudioFinish` |
-| Developer ASR + Platform TTS | `onAudioFrame` | `sendVoiceStart`, `sendAsrPartial`, `sendAsrFinal` → response |
+| Platform ASR + Platform TTS | `onTextInput` | `sendResponseChunk`, `sendResponseDone` |
 | Developer ASR + Developer TTS | `onAudioFrame` | ASR events → `sendResponseAudioStart`, `sendAudioFrame`, `sendResponseAudioFinish` |
 
 ## Server Example
@@ -157,7 +168,7 @@ curl -X POST http://localhost:8080/api/session/stop \
 | `avatar.id` | (example) | Default avatar ID |
 | `avatar.api.base-url` | `https://facemarket.ai` | Platform dispatcher URL |
 | `avatar.sandbox.enabled` | `false` | Route to sandbox (30 free min/month) |
-| `avatar.asr.developer-enabled` | `false` | `true` = Developer ASR / Omni |
+| `avatar.asr.developer-enabled` | `true` | `false` = Platform ASR, `true` = Developer ASR (default) |
 | `avatar.tts.developer-enabled` | `false` | `true` = Developer TTS |
 
 ### Customize

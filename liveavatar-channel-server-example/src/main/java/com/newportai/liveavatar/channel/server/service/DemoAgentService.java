@@ -39,7 +39,7 @@ public class DemoAgentService implements AgentListener {
     @Value("${avatar.sandbox.enabled:false}")
     private boolean sandbox;
 
-    @Value("${avatar.asr.developer-enabled:false}")
+    @Value("${avatar.asr.developer-enabled:true}")
     private boolean developerAsr;
 
     @Value("${avatar.tts.developer-enabled:false}")

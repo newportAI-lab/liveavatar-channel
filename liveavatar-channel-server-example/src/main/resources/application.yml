@@ -22,9 +22,9 @@ avatar:
     enabled: false
 
   asr:
-    # false = Platform ASR (default): platform handles ASR, developer receives input.text
-    # true  = Developer ASR / Omni: developer receives raw audio frames, runs VAD+ASR internally
-    developer-enabled: false
+    # false = Platform ASR: platform handles ASR, developer receives input.text
+    # true  = Developer ASR / Omni (default): developer receives raw audio frames, runs VAD+ASR internally
+    developer-enabled: true
 
   tts:
     # false = Platform TTS (default): developer sends text, platform synthesizes audio
