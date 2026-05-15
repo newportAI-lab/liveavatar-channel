@@ -8,7 +8,7 @@
     <groupId>io.github.newportai-lab</groupId>
     <artifactId>liveavatar-channel-sdk</artifactId>
     <packaging>jar</packaging>
-    <version>1.0.2</version>
+    <version>1.1.0</version>
     <name>live Avatar Channel SDK</name>
     <description>Java SDK for Real-time Interactive live Avatar WebSocket/Data Channel Protocol</description>
     <url>https://github.com/newportAI-lab/liveavatar-channel</url>
@@ -73,13 +73,7 @@
             <version>4.13.2</version>
             <scope>test</scope>
         </dependency>
-        <!-- Embedded WebSocket server for PlatformInboundSimulator -->
-        <dependency>
-            <groupId>org.java-websocket</groupId>
-            <artifactId>Java-WebSocket</artifactId>
-            <version>1.5.4</version>
-            <scope>test</scope>
-        </dependency>
+
         <dependency>
             <groupId>org.slf4j</groupId>
             <artifactId>slf4j-simple</artifactId>

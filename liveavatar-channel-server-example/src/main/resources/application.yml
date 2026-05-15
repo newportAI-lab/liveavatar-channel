@@ -7,14 +7,6 @@ spring:
 
 # Avatar Channel configuration
 avatar:
-  # Connection mode:
-  #   outbound = Platform connects to this WS server (developer hosts).
-  #              Register wsEndpoint in console. No token validation needed.
-  #   inbound  = Developer connects to platform's agentWsUrl as a WS client.
-  #              Call /api/session/start → get agentWsUrl → AvatarWebSocketClient connects.
-  #              Matches integration guide §6.2. No local WS server needed.
-  mode: outbound
-
   # Platform dispatcher API
   api:
     base-url: https://facemarket.ai
@@ -30,26 +22,14 @@ avatar:
     enabled: false
 
   asr:
-    # true  = Scenario 2B (Developer ASR / Omni): this server owns VAD + ASR.
-    #         The platform continuously forwards raw audio Binary Frames; the server
-    #         runs VAD/ASR internally and sends input.voice.* / input.asr.* back to
-    #         the platform, then triggers the AI response.
-    # false = Scenario 2A (Platform ASR): the platform handles VAD + ASR and sends
-    #         input.voice.* / input.asr.* events to this server as JSON messages.
-    #         Raw audio Binary Frames are not forwarded by the platform in this mode;
-    #         any that arrive are ignored. This server processes input.text only.
-    developer-enabled: true
+    # false = Platform ASR (default): platform handles ASR, developer receives input.text
+    # true  = Developer ASR / Omni: developer receives raw audio frames, runs VAD+ASR internally
+    developer-enabled: false
 
   tts:
-    # true  = Developer TTS: this server owns TTS. After sending response.chunk / response.done
-    #         it pushes TTS audio Binary Frames to the platform, wrapped with
-    #         response.audio.start and response.audio.finish. Do NOT send response.start.
-    # false = Platform TTS: the platform owns TTS. This server sends response.start (with
-    #         audio config) so the platform knows how to synthesise speech, then sends
-    #         response.chunk / response.done (text only). The platform will send
-    #         response.audio.start and response.audio.finish back to this server when
-    #         audio playback starts and ends.
-    developer-enabled: true
+    # false = Platform TTS (default): developer sends text, platform synthesizes audio
+    # true  = Developer TTS: developer sends synthesized audio frames directly
+    developer-enabled: false
 
 logging:
   level:
