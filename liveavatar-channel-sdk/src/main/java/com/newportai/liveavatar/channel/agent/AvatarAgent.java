@@ -103,7 +103,7 @@ public class AvatarAgent {
 
         // 1. Call platform REST API
         SessionInfo info = parseSessionResponse(
-                postJson(config.getBaseUrl() + "/vih/dispatcher/v1/session/start", buildStartRequest()));
+                postJson(config.getBaseUrl() + "/v1/session/start", buildStartRequest()));
 
         // 2. Wrap listener to intercept onSessionInit for the start() latch
         CountDownLatch readyLatch = new CountDownLatch(1);

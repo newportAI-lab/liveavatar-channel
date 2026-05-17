@@ -1,5 +1,6 @@
 package com.newportai.liveavatar.channel.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
@@ -7,6 +8,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
  * TTS audio configuration for response.start message.
  * Only applicable when TTS is provided by the Live Avatar Service.
  */
+@JsonIgnoreProperties(ignoreUnknown = true)
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public class AudioConfigData {
 

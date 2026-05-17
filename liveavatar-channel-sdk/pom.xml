@@ -8,7 +8,7 @@
     <groupId>io.github.newportai-lab</groupId>
     <artifactId>liveavatar-channel-sdk</artifactId>
     <packaging>jar</packaging>
-    <version>1.1.0</version>
+    <version>1.1.1</version>
     <name>live Avatar Channel SDK</name>
     <description>Java SDK for Real-time Interactive live Avatar WebSocket/Data Channel Protocol</description>
     <url>https://github.com/newportAI-lab/liveavatar-channel</url>
@@ -42,6 +42,7 @@
         <slf4j.version>2.0.7</slf4j.version>
         <okhttp.version>4.11.0</okhttp.version>
         <spring.boot.version>2.7.18</spring.boot.version>
+        <gpg.skip>true</gpg.skip>
     </properties>
 
     <dependencies>
@@ -117,6 +118,9 @@
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-gpg-plugin</artifactId>
                 <version>3.1.0</version>
+                <configuration>
+                    <skip>${gpg.skip}</skip>
+                </configuration>
                 <executions>
                     <execution>
                         <id>sign-artifacts</id>
@@ -137,4 +141,13 @@
             </plugin>
         </plugins>
     </build>
+
+    <profiles>
+        <profile>
+            <id>release</id>
+            <properties>
+                <gpg.skip>false</gpg.skip>
+            </properties>
+        </profile>
+    </profiles>
 </project>

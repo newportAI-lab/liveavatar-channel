@@ -1,12 +1,14 @@
 package com.newportai.liveavatar.channel.model;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 /**
  * Data model for system.idleTrigger event
  * Sent by live avatar service when idle timeout is detected
  */
+@JsonIgnoreProperties(ignoreUnknown = true)
 public class IdleTriggerData {
 
     private final String reason;
