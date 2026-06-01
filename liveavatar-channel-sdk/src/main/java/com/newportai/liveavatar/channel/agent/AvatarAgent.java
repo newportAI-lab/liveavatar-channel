@@ -216,6 +216,28 @@ public class AvatarAgent {
         requireStarted().wsClient.sendMessage(MessageBuilder.systemPrompt(text));
     }
 
+    // ── Send: Custom Event ──────────────────────────────────────────────────────
+
+    /**
+     * Send a custom event that is not predefined in the standard protocol.
+     * <p>
+     * The {@code event} and {@code data} are passed through as-is.
+     * Use this for experimental or application-specific events without
+     * modifying the SDK.
+     *
+     * @param requestId optional request identifier
+     * @param event     event type name, e.g. {@code "my.custom.event"}
+     * @param data      event payload, serialized as JSON (null = omitted)
+     */
+    public void sendCustomEvent(String requestId, String event, Object data)
+            throws ConnectionException, MessageSerializationException {
+        State s = requireStarted();
+        Message message = new Message(event);
+        message.setRequestId(requestId);
+        message.setData(data);
+        s.wsClient.sendMessage(message);
+    }
+
     // ── State ──────────────────────────────────────────────────────────────────
 
     public boolean isConnected() { State s = state.get(); return s.started && s.wsClient.isConnected(); }
