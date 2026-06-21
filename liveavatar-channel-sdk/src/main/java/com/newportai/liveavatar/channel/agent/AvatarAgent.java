@@ -333,6 +333,7 @@ public class AvatarAgent {
         @Override public void onTextInput(String text, String requestId) { delegate.onTextInput(text, requestId); }
         @Override public void onAudioFrame(AudioFrame frame) { delegate.onAudioFrame(frame); }
         @Override public void onSessionInit() { latch.countDown(); delegate.onSessionInit(); }
+        @Override public void onSceneReady() { delegate.onSceneReady(); }
         @Override public void onSessionState(SessionState state) { delegate.onSessionState(state); }
         @Override public void onIdleTrigger(String reason, long idleMs) { delegate.onIdleTrigger(reason, idleMs); }
         @Override public void onError(String message) { delegate.onError(message); }

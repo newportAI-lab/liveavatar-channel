@@ -43,3 +43,5 @@ liveavatar-channel-server-example/.classpath
 liveavatar-channel-sdk/.classpath
 /liveavatar-channel-sdk/.settings
 .vscode/settings.json
+.codegraph/daemon.pid
+AGENTS.md

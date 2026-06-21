@@ -53,6 +53,12 @@ public interface AgentListener {
     default void onSessionInit() {}
 
     /**
+     * Called when the platform sends {@code scene.ready} — the avatar scene is rendered
+     * and the conversation can begin.
+     */
+    default void onSceneReady() {}
+
+    /**
      * Called when the platform reports a session state change.
      * @param state the new session state (IDLE, LISTENING, THINKING, SPEAKING, etc.)
      */

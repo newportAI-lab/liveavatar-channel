@@ -231,6 +231,7 @@ public class AvatarWebSocketClient {
             }
             case EventType.SCENE_READY:
                 logger.debug("scene.ready — conversation can begin");
+                listener.onSceneReady();
                 break;
 
             default:
