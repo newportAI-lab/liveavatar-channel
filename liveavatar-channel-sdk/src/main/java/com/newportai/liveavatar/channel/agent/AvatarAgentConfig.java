@@ -24,6 +24,7 @@ public final class AvatarAgentConfig {
     private final boolean reconnectEnabled;
     private final String voiceId;   // nullable
     private final String userId;    // nullable
+    private final VoiceConfig voiceConfig; // nullable
 
     private AvatarAgentConfig(Builder builder) {
         this.apiKey = builder.apiKey;
@@ -35,6 +36,7 @@ public final class AvatarAgentConfig {
         this.reconnectEnabled = builder.reconnectEnabled;
         this.voiceId = builder.voiceId;
         this.userId = builder.userId;
+        this.voiceConfig = builder.voiceConfig;
     }
 
     public static Builder builder() { return new Builder(); }
@@ -50,6 +52,7 @@ public final class AvatarAgentConfig {
     public boolean isReconnectEnabled() { return reconnectEnabled; }
     public String getVoiceId() { return voiceId; }   // nullable
     public String getUserId() { return userId; }     // nullable
+    public VoiceConfig getVoiceConfig() { return voiceConfig; } // nullable
 
     // ── Builder ──
 
@@ -63,6 +66,7 @@ public final class AvatarAgentConfig {
         private boolean reconnectEnabled = true;
         private String voiceId;   // nullable
         private String userId;    // nullable
+        private VoiceConfig voiceConfig; // nullable
 
         /** API Key from the console (required). */
         public Builder apiKey(String apiKey) { this.apiKey = apiKey; return this; }
@@ -91,6 +95,9 @@ public final class AvatarAgentConfig {
         /** Optional user identifier included in session.init. */
         public Builder userId(String userId) { this.userId = userId; return this; }
 
+        /** Optional voice runtime configuration. */
+        public Builder voiceConfig(VoiceConfig voiceConfig) { this.voiceConfig = voiceConfig; return this; }
+
         /**
          * Builds the config.
          * @throws IllegalStateException if apiKey or avatarId is null or blank
@@ -103,6 +110,67 @@ public final class AvatarAgentConfig {
                 throw new IllegalStateException("avatarId is required");
             }
             return new AvatarAgentConfig(this);
+        }
+    }
+
+    /**
+     * Optional voice runtime configuration.
+     *
+     * <p>All fields are nullable so callers may set only the options they need.
+     */
+    public static final class VoiceConfig {
+        private final Integer volume;
+        private final Double speed;
+        private final Double stability;
+        private final Double similarityBoost;
+        private final Double style;
+        private final Double pitch;
+
+        private VoiceConfig(Builder builder) {
+            this.volume = builder.volume;
+            this.speed = builder.speed;
+            this.stability = builder.stability;
+            this.similarityBoost = builder.similarityBoost;
+            this.style = builder.style;
+            this.pitch = builder.pitch;
+        }
+
+        public static Builder builder() { return new Builder(); }
+
+        public Integer getVolume() { return volume; }
+        public Double getSpeed() { return speed; }
+        public Double getStability() { return stability; }
+        public Double getSimilarityBoost() { return similarityBoost; }
+        public Double getStyle() { return style; }
+        public Double getPitch() { return pitch; }
+
+        public static class Builder {
+            private Integer volume;
+            private Double speed;
+            private Double stability;
+            private Double similarityBoost;
+            private Double style;
+            private Double pitch;
+
+            /** Volume. */
+            public Builder volume(Integer volume) { this.volume = volume; return this; }
+
+            /** Speed. */
+            public Builder speed(Double speed) { this.speed = speed; return this; }
+
+            /** Stability, usually 0.0-1.0. */
+            public Builder stability(Double stability) { this.stability = stability; return this; }
+
+            /** Similarity boost, usually 0.0-1.0. */
+            public Builder similarityBoost(Double similarityBoost) { this.similarityBoost = similarityBoost; return this; }
+
+            /** Style, usually 0.0-1.0. */
+            public Builder style(Double style) { this.style = style; return this; }
+
+            /** Pitch, usually 0.0-2.0. */
+            public Builder pitch(Double pitch) { this.pitch = pitch; return this; }
+
+            public VoiceConfig build() { return new VoiceConfig(this); }
         }
     }
 }

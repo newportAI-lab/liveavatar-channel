@@ -255,8 +255,27 @@ public class AvatarAgent {
         StringBuilder sb = new StringBuilder("{\"avatarId\":\"").append(escapeJson(config.getAvatarId())).append('"');
         String vid = config.getVoiceId();
         if (vid != null && !vid.isEmpty()) sb.append(",\"voiceId\":\"").append(escapeJson(vid)).append('"');
+        AvatarAgentConfig.VoiceConfig voiceConfig = config.getVoiceConfig();
+        if (voiceConfig != null) {
+            sb.append(",\"voiceConfig\":{");
+            boolean first = true;
+            first = appendJsonNumber(sb, "volume", voiceConfig.getVolume(), first);
+            first = appendJsonNumber(sb, "speed", voiceConfig.getSpeed(), first);
+            first = appendJsonNumber(sb, "stability", voiceConfig.getStability(), first);
+            first = appendJsonNumber(sb, "similarityBoost", voiceConfig.getSimilarityBoost(), first);
+            first = appendJsonNumber(sb, "style", voiceConfig.getStyle(), first);
+            appendJsonNumber(sb, "pitch", voiceConfig.getPitch(), first);
+            sb.append('}');
+        }
         sb.append('}');
         return sb.toString();
+    }
+
+    private static boolean appendJsonNumber(StringBuilder sb, String name, Number value, boolean first) {
+        if (value == null) return first;
+        if (!first) sb.append(',');
+        sb.append('"').append(name).append("\":").append(value);
+        return false;
     }
 
     private String postJson(String url, String json) throws AvatarChannelException {

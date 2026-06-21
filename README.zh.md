@@ -53,7 +53,7 @@ SessionInfo info = agent.start();
 <dependency>
     <groupId>io.github.newportai-lab</groupId>
     <artifactId>liveavatar-channel-sdk</artifactId>
-    <version>1.1.3</version>
+    <version>1.1.4</version>
 </dependency>
 ```
 
