@@ -10,16 +10,18 @@ public class ExponentialBackoffStrategy implements ReconnectStrategy {
     private static final long INITIAL_DELAY_MS = 1000;      // 1 second
     private static final long MAX_DELAY_MS = 60000;         // 60 seconds
     private static final double MULTIPLIER = 2.0;
+    private static final int MAX_ATTEMPTS = 10;
 
     private final long initialDelayMs;
     private final long maxDelayMs;
     private final double multiplier;
+    private final int maxAttempts;
 
     /**
      * Create strategy with default parameters
      */
     public ExponentialBackoffStrategy() {
-        this(INITIAL_DELAY_MS, MAX_DELAY_MS, MULTIPLIER);
+        this(INITIAL_DELAY_MS, MAX_DELAY_MS, MULTIPLIER, MAX_ATTEMPTS);
     }
 
     /**
@@ -30,9 +32,22 @@ public class ExponentialBackoffStrategy implements ReconnectStrategy {
      * @param multiplier delay multiplier (typically 2.0)
      */
     public ExponentialBackoffStrategy(long initialDelayMs, long maxDelayMs, double multiplier) {
+        this(initialDelayMs, maxDelayMs, multiplier, MAX_ATTEMPTS);
+    }
+
+    /**
+     * Create strategy with custom parameters
+     *
+     * @param initialDelayMs initial delay in milliseconds
+     * @param maxDelayMs maximum delay in milliseconds
+     * @param multiplier delay multiplier (typically 2.0)
+     * @param maxAttempts maximum reconnect attempts
+     */
+    public ExponentialBackoffStrategy(long initialDelayMs, long maxDelayMs, double multiplier, int maxAttempts) {
         this.initialDelayMs = initialDelayMs;
         this.maxDelayMs = maxDelayMs;
         this.multiplier = multiplier;
+        this.maxAttempts = maxAttempts;
     }
 
     @Override
@@ -49,11 +64,17 @@ public class ExponentialBackoffStrategy implements ReconnectStrategy {
     }
 
     @Override
+    public boolean shouldContinue(int attempt) {
+        return attempt <= maxAttempts;
+    }
+
+    @Override
     public String toString() {
         return "ExponentialBackoffStrategy{" +
                 "initialDelayMs=" + initialDelayMs +
                 ", maxDelayMs=" + maxDelayMs +
                 ", multiplier=" + multiplier +
+                ", maxAttempts=" + maxAttempts +
                 '}';
     }
 }

@@ -14,6 +14,10 @@ import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.Set;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -29,6 +33,12 @@ import java.util.concurrent.atomic.AtomicInteger;
 public class AvatarWebSocketClient {
 
     private static final Logger logger = LoggerFactory.getLogger(AvatarWebSocketClient.class);
+    private static final Set<Integer> NON_RECONNECTABLE_CLOSE_CODES =
+            Collections.unmodifiableSet(new HashSet<Integer>(Arrays.asList(
+                    1000, // Normal Closure
+                    1002, // Protocol Error
+                    1008  // Policy Violation
+            )));
 
     private final String url;
     private final AgentListener listener;
@@ -59,11 +69,21 @@ public class AvatarWebSocketClient {
     }
 
     public void connect() {
+        connect(false);
+    }
+
+    private void reconnect() {
+        connect(true);
+    }
+
+    private void connect(boolean reconnecting) {
         if (connected) {
             logger.warn("Already connected");
             return;
         }
-        manualDisconnect = false;
+        if (!reconnecting) {
+            manualDisconnect = false;
+        }
 
         Request request = new Request.Builder().url(url).build();
 
@@ -72,7 +92,6 @@ public class AvatarWebSocketClient {
             public void onOpen(@NotNull WebSocket webSocket, @NotNull Response response) {
                 logger.info("WebSocket connection opened");
                 connected = true;
-                reconnectAttempts.set(0);
             }
 
             @Override
@@ -108,7 +127,7 @@ public class AvatarWebSocketClient {
                 logger.info("WebSocket closed: {} - {}", code, reason);
                 connected = false;
                 listener.onClosed(code, reason);
-                if (autoReconnectEnabled && !manualDisconnect) {
+                if (shouldReconnectAfterClose(code)) {
                     scheduleReconnect();
                 }
             }
@@ -177,7 +196,7 @@ public class AvatarWebSocketClient {
 
     public void disableAutoReconnect() {
         this.autoReconnectEnabled = false;
-        if (this.reconnectScheduler != null) { this.reconnectScheduler.shutdown(); this.reconnectScheduler = null; }
+        if (this.reconnectScheduler != null) { this.reconnectScheduler.shutdownNow(); this.reconnectScheduler = null; }
     }
 
     public boolean isAutoReconnectEnabled() { return autoReconnectEnabled; }
@@ -193,6 +212,7 @@ public class AvatarWebSocketClient {
         switch (event) {
             case EventType.SESSION_INIT:
                 // Auto-handshake: platform sends session.init → reply session.ready
+                reconnectAttempts.set(0);
                 try {
                     sendMessage(MessageBuilder.sessionReady());
                     logger.debug("Auto-replied session.ready");
@@ -244,6 +264,12 @@ public class AvatarWebSocketClient {
 
     // ── Reconnect ───────────────────────────────────────────────────────────
 
+    private boolean shouldReconnectAfterClose(int code) {
+        return autoReconnectEnabled
+                && !manualDisconnect
+                && !NON_RECONNECTABLE_CLOSE_CODES.contains(code);
+    }
+
     private void scheduleReconnect() {
         if (!autoReconnectEnabled || reconnectScheduler == null) return;
         int attempt = reconnectAttempts.incrementAndGet();
@@ -252,7 +278,7 @@ public class AvatarWebSocketClient {
         logger.info("Reconnect #{} in {}ms", attempt, delay);
         reconnectScheduler.schedule(() -> {
             if (!connected && !manualDisconnect && autoReconnectEnabled) {
-                connect();
+                reconnect();
             }
         }, delay, TimeUnit.MILLISECONDS);
     }
