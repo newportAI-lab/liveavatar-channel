@@ -136,6 +136,29 @@ AvatarAgentConfig.builder()
 | Platform ASR + Platform TTS | `onTextInput` | `sendResponseChunk`, `sendResponseDone` |
 | Developer ASR + Developer TTS | `onAudioFrame` | ASR events → `sendResponseAudioStart`, `sendAudioFrame`, `sendResponseAudioFinish` |
 
+### Splitting large PCM audio payloads
+
+Raw PCM audio must fit the SDK audio-frame header limit. For large 16-bit PCM
+payloads, split the payload before sending:
+
+```java
+List<AudioFrame> frames = AudioFrameSplitter.splitPcm(
+    pcmBytes,
+    AudioSplitOptions.builder()
+        .sampleRate(AudioHeader.SampleRate.RATE_24KHZ)
+        .stereo(false)
+        .build()
+);
+
+for (AudioFrame frame : frames) {
+    agent.sendAudioFrame(frame);
+}
+```
+
+`AudioFrameSplitter` is for raw PCM only. Do not use it to byte-split Opus,
+Ogg, or WebM payloads; keep compressed audio packetization at the encoder or
+container layer.
+
 ## Server Example
 
 Reference Spring Boot app in [`liveavatar-channel-server-example/`](./liveavatar-channel-server-example/).

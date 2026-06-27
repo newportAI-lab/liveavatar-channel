@@ -136,6 +136,28 @@ AvatarAgentConfig.builder()
 | 平台 ASR + 平台 TTS | `onTextInput` | `sendResponseChunk`, `sendResponseDone` |
 | 开发者 ASR + 开发者 TTS | `onAudioFrame` | ASR 事件 → `sendResponseAudioStart`, `sendAudioFrame`, `sendResponseAudioFinish` |
 
+### 拆分较大的 PCM 音频负载
+
+原始 PCM 音频需要符合 SDK 音频帧头的长度限制。对于较大的 16-bit PCM
+负载，可以先拆分再发送：
+
+```java
+List<AudioFrame> frames = AudioFrameSplitter.splitPcm(
+    pcmBytes,
+    AudioSplitOptions.builder()
+        .sampleRate(AudioHeader.SampleRate.RATE_24KHZ)
+        .stereo(false)
+        .build()
+);
+
+for (AudioFrame frame : frames) {
+    agent.sendAudioFrame(frame);
+}
+```
+
+`AudioFrameSplitter` 只用于原始 PCM。不要用它按字节拆分 Opus、Ogg 或 WebM
+负载；压缩音频的分包应在编码器或容器层完成。
+
 ## 服务端示例
 
 [`liveavatar-channel-server-example/`](./liveavatar-channel-server-example/) 中的 Spring Boot 参考应用。
