@@ -252,7 +252,8 @@ public class AvatarAgent {
     }
 
     private String buildStartRequest() {
-        StringBuilder sb = new StringBuilder("{\"avatarId\":\"").append(escapeJson(config.getAvatarId())).append('"');
+        StringBuilder sb = new StringBuilder("{\"avatarId\":\"").append(escapeJson(config.getAvatarId())).append('"')
+                .append(",\"mode\":\"websocketAgent\"");
         String vid = config.getVoiceId();
         if (vid != null && !vid.isEmpty()) sb.append(",\"voiceId\":\"").append(escapeJson(vid)).append('"');
         AvatarAgentConfig.VoiceConfig voiceConfig = config.getVoiceConfig();

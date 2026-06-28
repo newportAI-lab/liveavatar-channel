@@ -66,6 +66,7 @@ public class AvatarAgentConfigTest {
         Map<String, Object> voiceConfig = (Map<String, Object>) request.get("voiceConfig");
 
         assertEquals("avatar_id", request.get("avatarId"));
+        assertEquals("websocketAgent", request.get("mode"));
         assertNotNull(voiceConfig);
         assertEquals(80, ((Number) voiceConfig.get("volume")).intValue());
         assertEquals(1.1, ((Number) voiceConfig.get("speed")).doubleValue(), 0.0);
