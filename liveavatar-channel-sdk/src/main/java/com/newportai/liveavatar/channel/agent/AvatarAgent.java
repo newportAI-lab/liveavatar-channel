@@ -153,15 +153,33 @@ public class AvatarAgent {
         s.wsClient.sendMessage(MessageBuilder.responseStart(requestId, "res_" + System.currentTimeMillis(), audioConfig));
     }
 
+    public void sendResponseStart(String requestId, AudioConfigData audioConfig, Map<String, Object> metadata)
+            throws ConnectionException, MessageSerializationException {
+        State s = requireStarted();
+        s.wsClient.sendMessage(MessageBuilder.responseStart(requestId, "res_" + System.currentTimeMillis(), audioConfig, metadata));
+    }
+
     public void sendResponseChunk(String requestId, String text, int seq)
             throws ConnectionException, MessageSerializationException {
         State s = requireStarted();
         s.wsClient.sendMessage(MessageBuilder.responseChunk(requestId, "res_" + System.currentTimeMillis(), seq, text));
     }
 
+    public void sendResponseChunk(String requestId, String text, int seq, Map<String, Object> metadata)
+            throws ConnectionException, MessageSerializationException {
+        State s = requireStarted();
+        s.wsClient.sendMessage(MessageBuilder.responseChunk(requestId, "res_" + System.currentTimeMillis(), seq, text, metadata));
+    }
+
     public void sendResponseDone(String requestId) throws ConnectionException, MessageSerializationException {
         State s = requireStarted();
         s.wsClient.sendMessage(MessageBuilder.responseDone(requestId, "res_" + System.currentTimeMillis()));
+    }
+
+    public void sendResponseDone(String requestId, Map<String, Object> metadata)
+            throws ConnectionException, MessageSerializationException {
+        State s = requireStarted();
+        s.wsClient.sendMessage(MessageBuilder.responseDone(requestId, "res_" + System.currentTimeMillis(), metadata));
     }
 
     public void sendResponseCancel(String responseId) throws ConnectionException, MessageSerializationException {
@@ -197,14 +215,26 @@ public class AvatarAgent {
     public void sendVoiceStart(String requestId) throws ConnectionException, MessageSerializationException {
         requireStarted().wsClient.sendMessage(MessageBuilder.inputVoiceStart(requestId));
     }
+    public void sendVoiceStart(String requestId, Map<String, Object> metadata) throws ConnectionException, MessageSerializationException {
+        requireStarted().wsClient.sendMessage(MessageBuilder.inputVoiceStart(requestId, metadata));
+    }
     public void sendAsrPartial(String requestId, int seq, String text) throws ConnectionException, MessageSerializationException {
         requireStarted().wsClient.sendMessage(MessageBuilder.asrPartial(requestId, seq, text));
+    }
+    public void sendAsrPartial(String requestId, int seq, String text, Map<String, Object> metadata) throws ConnectionException, MessageSerializationException {
+        requireStarted().wsClient.sendMessage(MessageBuilder.asrPartial(requestId, seq, text, metadata));
     }
     public void sendVoiceFinish(String requestId) throws ConnectionException, MessageSerializationException {
         requireStarted().wsClient.sendMessage(MessageBuilder.inputVoiceFinish(requestId));
     }
+    public void sendVoiceFinish(String requestId, Map<String, Object> metadata) throws ConnectionException, MessageSerializationException {
+        requireStarted().wsClient.sendMessage(MessageBuilder.inputVoiceFinish(requestId, metadata));
+    }
     public void sendAsrFinal(String requestId, String text) throws ConnectionException, MessageSerializationException {
         requireStarted().wsClient.sendMessage(MessageBuilder.asrFinal(requestId, text));
+    }
+    public void sendAsrFinal(String requestId, String text, Map<String, Object> metadata) throws ConnectionException, MessageSerializationException {
+        requireStarted().wsClient.sendMessage(MessageBuilder.asrFinal(requestId, text, metadata));
     }
 
     // ── Send: Control ──────────────────────────────────────────────────────────
@@ -212,8 +242,14 @@ public class AvatarAgent {
     public void sendInterrupt() throws ConnectionException, MessageSerializationException {
         requireStarted().wsClient.sendMessage(MessageBuilder.controlInterrupt());
     }
+    public void sendInterrupt(String requestId, Map<String, Object> metadata) throws ConnectionException, MessageSerializationException {
+        requireStarted().wsClient.sendMessage(MessageBuilder.controlInterrupt(requestId, metadata));
+    }
     public void sendPrompt(String text) throws ConnectionException, MessageSerializationException {
         requireStarted().wsClient.sendMessage(MessageBuilder.systemPrompt(text));
+    }
+    public void sendPrompt(String text, Map<String, Object> metadata) throws ConnectionException, MessageSerializationException {
+        requireStarted().wsClient.sendMessage(MessageBuilder.systemPrompt(text, metadata));
     }
 
     // ── Send: Custom Event ──────────────────────────────────────────────────────

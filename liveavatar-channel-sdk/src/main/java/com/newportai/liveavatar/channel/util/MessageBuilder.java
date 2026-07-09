@@ -4,6 +4,9 @@ import com.newportai.liveavatar.channel.exception.MessageSerializationException;
 import com.newportai.liveavatar.channel.model.*;
 import com.newportai.liveavatar.channel.model.Message;
 
+import java.util.LinkedHashMap;
+import java.util.Map;
+
 /**
  * Message builder utility for creating protocol messages
  */
@@ -58,6 +61,13 @@ public class MessageBuilder {
         return message;
     }
 
+    public static Message inputText(String requestId, String text, Map<String, Object> metadata) {
+        Message message = new Message(EventType.INPUT_TEXT);
+        message.setRequestId(requestId);
+        message.setData(dataWithMetadata(metadata, "text", text));
+        return message;
+    }
+
     /**
      * Create input.asr.partial message
      */
@@ -69,6 +79,14 @@ public class MessageBuilder {
         return message;
     }
 
+    public static Message asrPartial(String requestId, int seq, String text, Map<String, Object> metadata) {
+        Message message = new Message(EventType.INPUT_ASR_PARTIAL);
+        message.setRequestId(requestId);
+        message.setSeq(seq);
+        message.setData(dataWithMetadata(metadata, "text", text, "final", false));
+        return message;
+    }
+
     /**
      * Create input.asr.final message
      */
@@ -76,6 +94,13 @@ public class MessageBuilder {
         Message message = new Message(EventType.INPUT_ASR_FINAL);
         message.setRequestId(requestId);
         message.setData(new TextData(text));
+        return message;
+    }
+
+    public static Message asrFinal(String requestId, String text, Map<String, Object> metadata) {
+        Message message = new Message(EventType.INPUT_ASR_FINAL);
+        message.setRequestId(requestId);
+        message.setData(dataWithMetadata(metadata, "text", text));
         return message;
     }
 
@@ -92,6 +117,15 @@ public class MessageBuilder {
         return message;
     }
 
+    public static Message responseStart(String requestId, String responseId, AudioConfigData audioConfig,
+                                        Map<String, Object> metadata) {
+        Message message = new Message(EventType.RESPONSE_START);
+        message.setRequestId(requestId);
+        message.setResponseId(responseId);
+        message.setData(dataWithMetadata(metadata, "audioConfig", audioConfig));
+        return message;
+    }
+
     /**
      * Create response.chunk message
      */
@@ -105,6 +139,17 @@ public class MessageBuilder {
         return message;
     }
 
+    public static Message responseChunk(String requestId, String responseId, int seq, String text,
+                                        Map<String, Object> metadata) {
+        Message message = new Message(EventType.RESPONSE_CHUNK);
+        message.setRequestId(requestId);
+        message.setResponseId(responseId);
+        message.setSeq(seq);
+        message.setTimestamp(System.currentTimeMillis());
+        message.setData(dataWithMetadata(metadata, "text", text));
+        return message;
+    }
+
     /**
      * Create response.done message
      */
@@ -112,6 +157,14 @@ public class MessageBuilder {
         Message message = new Message(EventType.RESPONSE_DONE);
         message.setRequestId(requestId);
         message.setResponseId(responseId);
+        return message;
+    }
+
+    public static Message responseDone(String requestId, String responseId, Map<String, Object> metadata) {
+        Message message = new Message(EventType.RESPONSE_DONE);
+        message.setRequestId(requestId);
+        message.setResponseId(responseId);
+        message.setData(metadataData(metadata));
         return message;
     }
 
@@ -131,12 +184,25 @@ public class MessageBuilder {
         return new Message(EventType.CONTROL_INTERRUPT);
     }
 
+    public static Message controlInterrupt(String requestId, Map<String, Object> metadata) {
+        Message message = new Message(EventType.CONTROL_INTERRUPT);
+        message.setRequestId(requestId);
+        message.setData(metadataData(metadata));
+        return message;
+    }
+
     /**
      * Create system.prompt message
      */
     public static Message systemPrompt(String text) {
         Message message = new Message(EventType.SYSTEM_PROMPT);
         message.setData(new TextData(text));
+        return message;
+    }
+
+    public static Message systemPrompt(String text, Map<String, Object> metadata) {
+        Message message = new Message(EventType.SYSTEM_PROMPT);
+        message.setData(dataWithMetadata(metadata, "text", text));
         return message;
     }
 
@@ -168,12 +234,26 @@ public class MessageBuilder {
         return message;
     }
 
+    public static Message inputVoiceStart(String requestId, Map<String, Object> metadata) {
+        Message message = new Message(EventType.INPUT_VOICE_START);
+        message.setRequestId(requestId);
+        message.setData(metadataData(metadata));
+        return message;
+    }
+
     /**
      * Create input.voice.finish message
      */
     public static Message inputVoiceFinish(String requestId) {
         Message message = new Message(EventType.INPUT_VOICE_FINISH);
         message.setRequestId(requestId);
+        return message;
+    }
+
+    public static Message inputVoiceFinish(String requestId, Map<String, Object> metadata) {
+        Message message = new Message(EventType.INPUT_VOICE_FINISH);
+        message.setRequestId(requestId);
+        message.setData(metadataData(metadata));
         return message;
     }
 
@@ -227,5 +307,34 @@ public class MessageBuilder {
      */
     public static String toJson(Message message) throws MessageSerializationException {
         return JsonUtil.toJson(message);
+    }
+
+    private static Map<String, Object> dataWithMetadata(Map<String, Object> metadata, Object... reservedPairs) {
+        Map<String, Object> data = metadataData(metadata);
+        if (data == null) data = new LinkedHashMap<>();
+        for (int i = 0; i < reservedPairs.length; i += 2) {
+            data.put((String) reservedPairs[i], reservedPairs[i + 1]);
+        }
+        return data;
+    }
+
+    private static Map<String, Object> metadataData(Map<String, Object> metadata) {
+        if (metadata == null || metadata.isEmpty()) return null;
+
+        Map<String, Object> data = new LinkedHashMap<>();
+        for (Map.Entry<String, Object> entry : metadata.entrySet()) {
+            String key = entry.getKey();
+            if (isProtectedField(key)) continue;
+            data.put(key, entry.getValue());
+        }
+        return data.isEmpty() ? null : data;
+    }
+
+    private static boolean isProtectedField(String key) {
+        return "text".equals(key)
+                || "final".equals(key)
+                || "event".equals(key)
+                || "requestId".equals(key)
+                || "seq".equals(key);
     }
 }

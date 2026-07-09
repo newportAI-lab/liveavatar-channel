@@ -4,6 +4,9 @@ import com.newportai.liveavatar.channel.exception.MessageSerializationException;
 import com.newportai.liveavatar.channel.model.*;
 import org.junit.Test;
 
+import java.util.LinkedHashMap;
+import java.util.Map;
+
 import static org.junit.Assert.*;
 
 /**
@@ -145,5 +148,78 @@ public class MessageBuilderTest {
 
         Message promptFinish = MessageBuilder.responseAudioPromptFinish();
         assertEquals(EventType.RESPONSE_AUDIO_PROMPT_FINISH, promptFinish.getEvent());
+    }
+
+    @Test
+    public void testBusinessExchangeMetadataIsMergedIntoData() {
+        Map<String, Object> metadata = new LinkedHashMap<>();
+        metadata.put("interviewId", "iv_001");
+        metadata.put("questionId", "q_001");
+        metadata.put("exchangeId", "ex_002");
+        metadata.put("answerId", "ans_002");
+
+        Message voiceStart = MessageBuilder.inputVoiceStart("req_a2", metadata);
+        Map<String, Object> voiceData = JsonUtil.convertData(voiceStart.getData(), Map.class);
+        assertEquals("iv_001", voiceData.get("interviewId"));
+        assertEquals("q_001", voiceData.get("questionId"));
+        assertEquals("ex_002", voiceData.get("exchangeId"));
+        assertEquals("ans_002", voiceData.get("answerId"));
+
+        Message asrFinal = MessageBuilder.asrFinal("req_a2", "I built payment systems.", metadata);
+        Map<String, Object> asrData = JsonUtil.convertData(asrFinal.getData(), Map.class);
+        assertEquals("I built payment systems.", asrData.get("text"));
+        assertEquals("ex_002", asrData.get("exchangeId"));
+
+        Message prompt = MessageBuilder.systemPrompt("Tell me about your last project.", metadata);
+        Map<String, Object> promptData = JsonUtil.convertData(prompt.getData(), Map.class);
+        assertEquals("Tell me about your last project.", promptData.get("text"));
+        assertEquals("iv_001", promptData.get("interviewId"));
+    }
+
+    @Test
+    public void testMetadataCannotOverrideProtocolFields() {
+        Map<String, Object> metadata = new LinkedHashMap<>();
+        metadata.put("text", "metadata text");
+        metadata.put("final", true);
+        metadata.put("event", "evil.event");
+        metadata.put("requestId", "evil_req");
+        metadata.put("seq", 99);
+        metadata.put("exchangeId", "ex_002");
+
+        Message partial = MessageBuilder.asrPartial("req_a2", 3, "real text", metadata);
+        Map<String, Object> data = JsonUtil.convertData(partial.getData(), Map.class);
+
+        assertEquals(EventType.INPUT_ASR_PARTIAL, partial.getEvent());
+        assertEquals("req_a2", partial.getRequestId());
+        assertEquals(Integer.valueOf(3), partial.getSeq());
+        assertEquals("real text", data.get("text"));
+        assertEquals(false, data.get("final"));
+        assertFalse(data.containsKey("event"));
+        assertFalse(data.containsKey("requestId"));
+        assertFalse(data.containsKey("seq"));
+        assertEquals("ex_002", data.get("exchangeId"));
+    }
+
+    @Test
+    public void testSuggestedMetadataEvents() {
+        Map<String, Object> metadata = new LinkedHashMap<>();
+        metadata.put("interviewId", "iv_001");
+        metadata.put("questionId", "q_001");
+        metadata.put("reason", "skip_question");
+
+        Message inputText = MessageBuilder.inputText("req_t1", "typed answer", metadata);
+        Map<String, Object> inputData = JsonUtil.convertData(inputText.getData(), Map.class);
+        assertEquals("typed answer", inputData.get("text"));
+        assertEquals("iv_001", inputData.get("interviewId"));
+
+        Message responseDone = MessageBuilder.responseDone("req_r1", "res_1", metadata);
+        Map<String, Object> responseData = JsonUtil.convertData(responseDone.getData(), Map.class);
+        assertEquals("q_001", responseData.get("questionId"));
+
+        Message interrupt = MessageBuilder.controlInterrupt("req_i1", metadata);
+        Map<String, Object> interruptData = JsonUtil.convertData(interrupt.getData(), Map.class);
+        assertEquals("req_i1", interrupt.getRequestId());
+        assertEquals("skip_question", interruptData.get("reason"));
+        assertEquals("iv_001", interruptData.get("interviewId"));
     }
 }
