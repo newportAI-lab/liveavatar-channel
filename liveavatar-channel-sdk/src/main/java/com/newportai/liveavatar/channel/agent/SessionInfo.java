@@ -12,12 +12,14 @@ public final class SessionInfo {
     private final String userToken;
     private final String sfuUrl;
     private final String agentWsUrl;
+    private final String joinUrl;
 
-    SessionInfo(String sessionId, String userToken, String sfuUrl, String agentWsUrl) {
+    SessionInfo(String sessionId, String userToken, String sfuUrl, String agentWsUrl, String joinUrl) {
         this.sessionId = sessionId;
         this.userToken = userToken;
         this.sfuUrl = sfuUrl;
         this.agentWsUrl = agentWsUrl;
+        this.joinUrl = joinUrl;
     }
 
     /** Platform-issued session identifier. */
@@ -31,6 +33,9 @@ public final class SessionInfo {
 
     /** WebSocket URL used by the agent to connect to the platform. For debugging only. */
     public String getAgentWsUrl() { return agentWsUrl; }
+
+    /** Frontend join URL returned by the platform. */
+    public String getJoinUrl() { return joinUrl; }
 
     @Override
     public boolean equals(Object o) {

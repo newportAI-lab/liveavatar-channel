@@ -24,6 +24,7 @@ public final class AvatarAgentConfig {
     private final boolean reconnectEnabled;
     private final String voiceId;   // nullable
     private final String userId;    // nullable
+    private final String rtcProvider; // nullable
     private final VoiceConfig voiceConfig; // nullable
 
     private AvatarAgentConfig(Builder builder) {
@@ -36,6 +37,7 @@ public final class AvatarAgentConfig {
         this.reconnectEnabled = builder.reconnectEnabled;
         this.voiceId = builder.voiceId;
         this.userId = builder.userId;
+        this.rtcProvider = builder.rtcProvider;
         this.voiceConfig = builder.voiceConfig;
     }
 
@@ -52,6 +54,7 @@ public final class AvatarAgentConfig {
     public boolean isReconnectEnabled() { return reconnectEnabled; }
     public String getVoiceId() { return voiceId; }   // nullable
     public String getUserId() { return userId; }     // nullable
+    public String getRtcProvider() { return rtcProvider; } // nullable
     public VoiceConfig getVoiceConfig() { return voiceConfig; } // nullable
 
     // ── Builder ──
@@ -66,6 +69,7 @@ public final class AvatarAgentConfig {
         private boolean reconnectEnabled = true;
         private String voiceId;   // nullable
         private String userId;    // nullable
+        private String rtcProvider; // nullable
         private VoiceConfig voiceConfig; // nullable
 
         /** API Key from the console (required). */
@@ -94,6 +98,9 @@ public final class AvatarAgentConfig {
 
         /** Optional user identifier included in session.init. */
         public Builder userId(String userId) { this.userId = userId; return this; }
+
+        /** Optional RTC provider included in /session/start. */
+        public Builder rtcProvider(String rtcProvider) { this.rtcProvider = rtcProvider; return this; }
 
         /** Optional voice runtime configuration. */
         public Builder voiceConfig(VoiceConfig voiceConfig) { this.voiceConfig = voiceConfig; return this; }

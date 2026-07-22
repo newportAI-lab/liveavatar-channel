@@ -53,7 +53,7 @@ SessionInfo info = agent.start();
 <dependency>
     <groupId>io.github.newportai-lab</groupId>
     <artifactId>liveavatar-channel-sdk</artifactId>
-    <version>1.1.5</version>
+    <version>1.1.7</version>
 </dependency>
 ```
 
@@ -115,6 +115,7 @@ AvatarAgentConfig.builder()
     .developerTts(false)            // true = Developer TTS
     .reconnectEnabled(true)
     .voiceId("voice_...")           // optional voice override
+    .rtcProvider("livekit")         // optional RTC provider
     .userId("user_...")             // optional
     .build();
 ```
@@ -126,6 +127,7 @@ AvatarAgentConfig.builder()
 | `getSessionId()` | Platform session identifier |
 | `getUserToken()` | Frontend RTC join token |
 | `getSfuUrl()` | LiveKit SFU endpoint for frontend |
+| `getJoinUrl()` | Frontend join URL returned by platform |
 
 ## Mode Combinations
 
@@ -151,8 +153,8 @@ mvn spring-boot:run
 # Start a session
 curl -X POST http://localhost:8080/api/session/start \
   -H "Content-Type: application/json" \
-  -d '{"avatarId": "avatar_xxx"}'
-# → {"sessionId":"...", "userToken":"...", "sfuUrl":"...", "agentWsUrl":"..."}
+  -d '{"avatarId": "avatar_xxx", "rtcProvider": "livekit"}'
+# → {"sessionId":"...", "userToken":"...", "sfuUrl":"...", "agentWsUrl":"...", "joinUrl":"..."}
 
 # Stop a session
 curl -X POST http://localhost:8080/api/session/stop \

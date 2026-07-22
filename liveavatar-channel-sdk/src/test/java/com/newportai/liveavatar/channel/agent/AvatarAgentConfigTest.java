@@ -42,6 +42,7 @@ public class AvatarAgentConfigTest {
         AvatarAgentConfig config = AvatarAgentConfig.builder()
                 .apiKey("api_key")
                 .avatarId("avatar_id")
+                .rtcProvider("livekit")
                 .voiceConfig(AvatarAgentConfig.VoiceConfig.builder()
                         .volume(80)
                         .speed(1.1)
@@ -66,6 +67,7 @@ public class AvatarAgentConfigTest {
         Map<String, Object> voiceConfig = (Map<String, Object>) request.get("voiceConfig");
 
         assertEquals("avatar_id", request.get("avatarId"));
+        assertEquals("livekit", request.get("rtcProvider"));
         assertNotNull(voiceConfig);
         assertEquals(80, ((Number) voiceConfig.get("volume")).intValue());
         assertEquals(1.1, ((Number) voiceConfig.get("speed")).doubleValue(), 0.0);
@@ -73,5 +75,16 @@ public class AvatarAgentConfigTest {
         assertEquals(0.8, ((Number) voiceConfig.get("similarityBoost")).doubleValue(), 0.0);
         assertEquals(0.2, ((Number) voiceConfig.get("style")).doubleValue(), 0.0);
         assertEquals(1.0, ((Number) voiceConfig.get("pitch")).doubleValue(), 0.0);
+    }
+
+    @Test
+    public void testRtcProviderCanBeSet() {
+        AvatarAgentConfig config = AvatarAgentConfig.builder()
+                .apiKey("api_key")
+                .avatarId("avatar_id")
+                .rtcProvider("agora")
+                .build();
+
+        assertEquals("agora", config.getRtcProvider());
     }
 }

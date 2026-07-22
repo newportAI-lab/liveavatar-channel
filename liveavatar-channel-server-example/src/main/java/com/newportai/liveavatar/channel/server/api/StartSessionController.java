@@ -40,6 +40,7 @@ public class StartSessionController {
     public ResponseEntity<?> start(@RequestBody(required = false) StartSessionRequest request) {
         String avatarId = request != null ? request.getAvatarId() : null;
         String voiceId = request != null ? request.getVoiceId() : null;
+        String rtcProvider = request != null ? request.getRtcProvider() : null;
         String sessionId = request != null ? request.getSessionId() : null;
 
         if (sessionId != null && !sessionId.isEmpty()) {
@@ -49,7 +50,7 @@ public class StartSessionController {
         }
 
         try {
-            SessionInfo info = agentService.startSession(avatarId, voiceId);
+            SessionInfo info = agentService.startSession(avatarId, voiceId, rtcProvider);
             return ResponseEntity.ok(new StartSessionResponse(info));
         } catch (AvatarChannelException e) {
             logger.error("Failed to start session", e);
@@ -81,6 +82,7 @@ public class StartSessionController {
         private String avatarId;
         private String sessionId;
         private String voiceId;
+        private String rtcProvider;
 
         public String getAvatarId() { return avatarId; }
         public void setAvatarId(String avatarId) { this.avatarId = avatarId; }
@@ -90,6 +92,9 @@ public class StartSessionController {
 
         public String getVoiceId() { return voiceId; }
         public void setVoiceId(String voiceId) { this.voiceId = voiceId; }
+
+        public String getRtcProvider() { return rtcProvider; }
+        public void setRtcProvider(String rtcProvider) { this.rtcProvider = rtcProvider; }
     }
 
     public static class StopSessionRequest {
@@ -104,17 +109,20 @@ public class StartSessionController {
         private final String sfuUrl;
         private final String userToken;
         private final String agentWsUrl;
+        private final String joinUrl;
 
         public StartSessionResponse(SessionInfo info) {
             this.sessionId = info.getSessionId();
             this.sfuUrl = info.getSfuUrl();
             this.userToken = info.getUserToken();
             this.agentWsUrl = info.getAgentWsUrl();
+            this.joinUrl = info.getJoinUrl();
         }
 
         public String getSessionId() { return sessionId; }
         public String getSfuUrl() { return sfuUrl; }
         public String getUserToken() { return userToken; }
         public String getAgentWsUrl() { return agentWsUrl; }
+        public String getJoinUrl() { return joinUrl; }
     }
 }

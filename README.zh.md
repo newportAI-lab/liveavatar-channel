@@ -53,7 +53,7 @@ SessionInfo info = agent.start();
 <dependency>
     <groupId>io.github.newportai-lab</groupId>
     <artifactId>liveavatar-channel-sdk</artifactId>
-    <version>1.1.5</version>
+    <version>1.1.7</version>
 </dependency>
 ```
 
@@ -115,6 +115,7 @@ AvatarAgentConfig.builder()
     .developerTts(false)            // true = 开发者自提供 TTS
     .reconnectEnabled(true)
     .voiceId("voice_...")           // 可选音色覆盖
+    .rtcProvider("livekit")         // 可选 RTC 提供方
     .userId("user_...")             // 可选
     .build();
 ```
@@ -126,6 +127,7 @@ AvatarAgentConfig.builder()
 | `getSessionId()` | 平台会话标识 |
 | `getUserToken()` | 前端 RTC 入会 token |
 | `getSfuUrl()` | 前端 LiveKit SFU 地址 |
+| `getJoinUrl()` | 平台返回的前端入会 URL |
 
 ## 模式组合
 
@@ -151,8 +153,8 @@ mvn spring-boot:run
 # 创建会话
 curl -X POST http://localhost:8080/api/session/start \
   -H "Content-Type: application/json" \
-  -d '{"avatarId": "avatar_xxx"}'
-# → {"sessionId":"...", "userToken":"...", "sfuUrl":"...", "agentWsUrl":"..."}
+  -d '{"avatarId": "avatar_xxx", "rtcProvider": "livekit"}'
+# → {"sessionId":"...", "userToken":"...", "sfuUrl":"...", "agentWsUrl":"...", "joinUrl":"..."}
 
 # 结束会话
 curl -X POST http://localhost:8080/api/session/stop \

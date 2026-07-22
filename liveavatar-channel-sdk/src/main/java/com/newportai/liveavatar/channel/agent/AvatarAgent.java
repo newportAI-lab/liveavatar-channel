@@ -255,6 +255,10 @@ public class AvatarAgent {
         StringBuilder sb = new StringBuilder("{\"avatarId\":\"").append(escapeJson(config.getAvatarId())).append('"');
         String vid = config.getVoiceId();
         if (vid != null && !vid.isEmpty()) sb.append(",\"voiceId\":\"").append(escapeJson(vid)).append('"');
+        String rtcProvider = config.getRtcProvider();
+        if (rtcProvider != null && !rtcProvider.isEmpty()) {
+            sb.append(",\"rtcProvider\":\"").append(escapeJson(rtcProvider)).append('"');
+        }
         AvatarAgentConfig.VoiceConfig voiceConfig = config.getVoiceConfig();
         if (voiceConfig != null) {
             sb.append(",\"voiceConfig\":{");
@@ -316,7 +320,8 @@ public class AvatarAgent {
                     String.valueOf(d.get("sessionId")),
                     String.valueOf(d.getOrDefault("userToken", "")),
                     String.valueOf(d.getOrDefault("sfuUrl", "")),
-                    agentWsUrl);
+                    agentWsUrl,
+                    String.valueOf(d.getOrDefault("joinUrl", "")));
         } catch (AvatarChannelException e) { throw e; }
         catch (Exception e) { throw new AvatarChannelException("Failed to parse response: " + e.getMessage(), e); }
     }

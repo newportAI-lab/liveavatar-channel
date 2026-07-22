@@ -53,7 +53,7 @@ public class DemoAgentService implements AgentListener {
      * @return SessionInfo containing userToken and sfuUrl for the frontend
      * @throws AvatarChannelException if the REST call or WebSocket connection fails
      */
-    public SessionInfo startSession(String avatarId, String voiceId) throws AvatarChannelException {
+    public SessionInfo startSession(String avatarId, String voiceId, String rtcProvider) throws AvatarChannelException {
         String effectiveAvatarId = avatarId != null ? avatarId : defaultAvatarId;
 
         AvatarAgent agent = AvatarAgent.builder()
@@ -65,6 +65,7 @@ public class DemoAgentService implements AgentListener {
                         .developerAsr(developerAsr)
                         .developerTts(developerTts)
                         .voiceId(voiceId)
+                        .rtcProvider(rtcProvider)
                         .build())
                 .listener(this)
                 .build();
