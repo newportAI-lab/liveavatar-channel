@@ -38,6 +38,7 @@ public class EventType {
     // Scene events (LiveKit DataChannel / Scenario 4)
     // Sent by the JS SDK when the scene is ready and the conversation can start.
     public static final String SCENE_READY = "scene.ready";
+    public static final String SCENE_RESOURCE_TRANSITION = "scene.resourceTransition";
 
     // Error events
     public static final String ERROR = "error";

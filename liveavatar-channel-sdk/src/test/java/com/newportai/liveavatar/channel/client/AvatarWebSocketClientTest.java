@@ -3,6 +3,8 @@ package com.newportai.liveavatar.channel.client;
 import com.newportai.liveavatar.channel.agent.AgentListener;
 import com.newportai.liveavatar.channel.model.EventType;
 import com.newportai.liveavatar.channel.model.Message;
+import com.newportai.liveavatar.channel.model.ResourceTransitionData;
+import com.newportai.liveavatar.channel.util.JsonUtil;
 import okhttp3.Request;
 import okhttp3.WebSocket;
 import okio.ByteString;
@@ -33,6 +35,55 @@ public class AvatarWebSocketClientTest {
         handleMessage.invoke(client, new Message(EventType.SCENE_READY));
 
         assertTrue(sceneReadyCalled.get());
+    }
+
+    @Test
+    public void testResourceTransitionDispatchesToListener() throws Exception {
+        AtomicBoolean transitionCalled = new AtomicBoolean(false);
+        AvatarWebSocketClient client = new AvatarWebSocketClient("ws://localhost", new AgentListener() {
+            @Override
+            public void onResourceTransition(ResourceTransitionData data) {
+                transitionCalled.set(
+                        "video-a".equals(data.getPreviousResourceId())
+                                && "video-b".equals(data.getNextResourceId())
+                                && "switch from video-a to video-b".equals(data.getMessage()));
+            }
+        });
+
+        Message message = JsonUtil.fromJson("{"
+                + "\"event\":\"scene.resourceTransition\","
+                + "\"data\":{"
+                + "\"previousResourceId\":\"video-a\","
+                + "\"nextResourceId\":\"video-b\","
+                + "\"message\":\"switch from video-a to video-b\""
+                + "}"
+                + "}");
+        Method handleMessage = AvatarWebSocketClient.class.getDeclaredMethod("handleMessage", Message.class);
+        handleMessage.setAccessible(true);
+        handleMessage.invoke(client, message);
+
+        assertTrue(transitionCalled.get());
+    }
+
+    @Test
+    public void testMalformedResourceTransitionDoesNotDispatch() throws Exception {
+        AtomicBoolean transitionCalled = new AtomicBoolean(false);
+        AvatarWebSocketClient client = new AvatarWebSocketClient("ws://localhost", new AgentListener() {
+            @Override
+            public void onResourceTransition(ResourceTransitionData data) {
+                transitionCalled.set(true);
+            }
+        });
+
+        Message message = JsonUtil.fromJson("{"
+                + "\"event\":\"scene.resourceTransition\","
+                + "\"data\":{\"nextResourceId\":\"video-b\"}"
+                + "}");
+        Method handleMessage = AvatarWebSocketClient.class.getDeclaredMethod("handleMessage", Message.class);
+        handleMessage.setAccessible(true);
+        handleMessage.invoke(client, message);
+
+        assertFalse(transitionCalled.get());
     }
 
     @Test

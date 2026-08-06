@@ -1,6 +1,7 @@
 package com.newportai.liveavatar.channel.agent;
 
 import com.newportai.liveavatar.channel.model.AudioFrame;
+import com.newportai.liveavatar.channel.model.ResourceTransitionData;
 import com.newportai.liveavatar.channel.model.SessionState;
 
 /**
@@ -63,6 +64,24 @@ public interface AgentListener {
      * @param state the new session state (IDLE, LISTENING, THINKING, SPEAKING, etc.)
      */
     default void onSessionState(SessionState state) {}
+
+    /**
+     * Called when the renderer reports a video resource transition.
+     *
+     * <p>This callback is emitted by the platform when the renderer has finished
+     * playing the current video resource and is about to switch to the next one.
+     * It is a notification only: returning from this method does not acknowledge,
+     * cancel, or influence the renderer switch.</p>
+     *
+     * <p>Typical uses are business synchronization, logging, analytics, or
+     * preparing agent-side context for the next resource. Do not use the
+     * human-readable {@link ResourceTransitionData#getMessage()} value for
+     * branching; use {@code previousResourceId} and {@code nextResourceId}
+     * instead.</p>
+     *
+     * @param data resource transition details
+     */
+    default void onResourceTransition(ResourceTransitionData data) {}
 
     /**
      * Called when the platform detects the avatar has been idle for a configured duration.

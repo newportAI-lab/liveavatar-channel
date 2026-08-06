@@ -227,6 +227,18 @@ public class AvatarWebSocketClient {
                 if (d != null) listener.onSessionState(SessionState.fromValue(d.getState()));
                 break;
             }
+            case EventType.SCENE_RESOURCE_TRANSITION: {
+                ResourceTransitionData d = JsonUtil.convertData(message.getData(), ResourceTransitionData.class);
+                if (d != null && d.hasRequiredResourceIds()) {
+                    listener.onResourceTransition(d);
+                } else {
+                    // Required resource IDs are the contract boundary for this event.
+                    // Dropping malformed notifications avoids calling business code
+                    // with empty IDs that could be mistaken for real resources.
+                    logger.warn("Malformed scene.resourceTransition payload");
+                }
+                break;
+            }
             case EventType.SESSION_CLOSING: {
                 CloseReasonData d = JsonUtil.convertData(message.getData(), CloseReasonData.class);
                 listener.onSessionClosing(d != null ? d.getReason() : "unknown");

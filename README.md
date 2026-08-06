@@ -41,7 +41,7 @@ SessionInfo info = agent.start();
 ## Features
 
 - **One-call start** — REST + WS + handshake in `agent.start()`
-- **Simple listener** — 9 callbacks, only `onTextInput` required
+- **Simple listener** — 10 callbacks, only `onTextInput` required
 - **Developer ASR + Platform TTS** by default — receive raw audio, run ASR+LLM locally, send text back
 - **Developer ASR / TTS** available — full send API for all 4 mode combos
 - **Auto-reconnect** — exponential backoff, enabled by default
@@ -53,7 +53,7 @@ SessionInfo info = agent.start();
 <dependency>
     <groupId>io.github.newportai-lab</groupId>
     <artifactId>liveavatar-channel-sdk</artifactId>
-    <version>1.1.8</version>
+    <version>1.1.9</version>
 </dependency>
 ```
 
@@ -95,6 +95,7 @@ AvatarWebSocketClient (OkHttp3 transport, auto-handshake)
 | `onTextInput(text, requestId)` | User sent text or platform ASR result |
 | `onSessionInit()` | Handshake complete |
 | `onSessionState(state)` | Avatar state changed |
+| `onResourceTransition(data)` | Renderer is about to switch video resources |
 | `onIdleTrigger(reason, idleMs)` | User inactive — optionally reply with `sendPrompt()` |
 | `onSessionClosing(reason)` | Platform about to close session |
 | `onAudioFrame(frame)` | Raw audio (Developer ASR mode only) |
@@ -102,6 +103,36 @@ AvatarWebSocketClient (OkHttp3 transport, auto-handshake)
 | `onClosed(code, reason)` | Connection closed |
 
 All methods have default no-op bodies — only override what you need.
+
+#### Video Resource Transition Callback
+
+`scene.resourceTransition` is delivered only to the agent WebSocket when the
+renderer has finished the current video and is about to switch to the next
+configured video resource. It is a one-way notification: the callback return
+value is ignored and cannot acknowledge, cancel, or delay the renderer switch.
+
+```java
+@Override
+public void onResourceTransition(ResourceTransitionData data) {
+    log.info("Avatar video switched: {} -> {}",
+            data.getPreviousResourceId(),
+            data.getNextResourceId());
+}
+```
+
+Field meanings:
+
+| Field | Required | Meaning |
+|---|---|---|
+| `previousResourceId` | Yes | Stable business ID of the video resource being switched away from. It is not a URL, file path, or display name. |
+| `nextResourceId` | Yes | Stable business ID of the video resource the renderer is about to switch to. It is not a URL, file path, or display name. |
+| `message` | No | Human-readable context from the platform. Treat it as optional diagnostic text and do not branch business logic on it. |
+
+`sessionId`, `requestId`, and `timestamp` are message envelope fields, not
+fields inside `ResourceTransitionData`. The event intentionally does not expose
+`streamId` because the active WebSocket session already scopes the stream. If
+the platform sends a malformed payload with either resource ID missing or blank,
+the SDK drops it and does not invoke `onResourceTransition`.
 
 ### AvatarAgentConfig
 

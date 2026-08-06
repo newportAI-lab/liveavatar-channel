@@ -49,6 +49,18 @@ public class MessageBuilderTest {
     }
 
     @Test
+    public void testResourceTransitionData() {
+        ResourceTransitionData data = new ResourceTransitionData(
+                "video-a",
+                "video-b",
+                "switch from video-a to video-b");
+
+        assertEquals("video-a", data.getPreviousResourceId());
+        assertEquals("video-b", data.getNextResourceId());
+        assertEquals("switch from video-a to video-b", data.getMessage());
+    }
+
+    @Test
     public void testAllSessionStates() {
         for (SessionState state : SessionState.values()) {
             Message message = MessageBuilder.sessionState(state.getValue(), 1);

@@ -359,6 +359,7 @@ public class AvatarAgent {
         @Override public void onSessionInit() { latch.countDown(); delegate.onSessionInit(); }
         @Override public void onSceneReady() { delegate.onSceneReady(); }
         @Override public void onSessionState(SessionState state) { delegate.onSessionState(state); }
+        @Override public void onResourceTransition(ResourceTransitionData data) { delegate.onResourceTransition(data); }
         @Override public void onIdleTrigger(String reason, long idleMs) { delegate.onIdleTrigger(reason, idleMs); }
         @Override public void onError(String message) { delegate.onError(message); }
         @Override public void onSessionClosing(String reason) { delegate.onSessionClosing(reason); }

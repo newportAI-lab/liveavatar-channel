@@ -41,7 +41,7 @@ SessionInfo info = agent.start();
 ## 特性
 
 - **一行启动** — REST + WS + 握手全在 `agent.start()`
-- **简洁回调** — 9 个方法，只需实现 `onTextInput`
+- **简洁回调** — 10 个方法，只需实现 `onTextInput`
 - **默认开发者 ASR + 平台 TTS** — 接收原始音频，本地跑 ASR+LLM，回传文本
 - **支持开发者自提供 ASR / TTS** — 覆盖全部 4 种模式组合
 - **自动重连** — 指数退避策略，默认开启
@@ -53,7 +53,7 @@ SessionInfo info = agent.start();
 <dependency>
     <groupId>io.github.newportai-lab</groupId>
     <artifactId>liveavatar-channel-sdk</artifactId>
-    <version>1.1.8</version>
+    <version>1.1.9</version>
 </dependency>
 ```
 
@@ -95,6 +95,7 @@ AvatarWebSocketClient（OkHttp3 传输层，自动握手）
 | `onTextInput(text, requestId)` | 用户输入文本或平台 ASR 结果 |
 | `onSessionInit()` | 握手完成 |
 | `onSessionState(state)` | 数字人状态变更 |
+| `onResourceTransition(data)` | renderer 即将切换视频资源 |
 | `onIdleTrigger(reason, idleMs)` | 用户闲置 — 可选回复 `sendPrompt()` |
 | `onSessionClosing(reason)` | 平台即将关闭会话 |
 | `onAudioFrame(frame)` | 原始音频帧（仅开发者 ASR 模式） |
@@ -102,6 +103,34 @@ AvatarWebSocketClient（OkHttp3 传输层，自动握手）
 | `onClosed(code, reason)` | 连接关闭 |
 
 所有方法有默认空实现 — 只需覆盖你需要的。
+
+#### 视频资源切换回调
+
+`scene.resourceTransition` 只会通过 agent WebSocket 下发。它表示 renderer
+已经播放完当前视频，并即将切换到下一个已配置的视频资源。该事件是单向通知：
+回调返回值不会被平台读取，也不能确认、取消或延迟本次视频切换。
+
+```java
+@Override
+public void onResourceTransition(ResourceTransitionData data) {
+    log.info("Avatar video switched: {} -> {}",
+            data.getPreviousResourceId(),
+            data.getNextResourceId());
+}
+```
+
+字段含义：
+
+| 字段 | 是否必填 | 含义 |
+|---|---|---|
+| `previousResourceId` | 是 | 即将切走的上一个视频资源的稳定业务 ID。它不是 URL、文件路径或展示名称。 |
+| `nextResourceId` | 是 | 即将切到的下一个视频资源的稳定业务 ID。它不是 URL、文件路径或展示名称。 |
+| `message` | 否 | 平台补充的可读说明文本。它可能为空，只适合日志和排查，不要用它做业务分支判断。 |
+
+`sessionId`、`requestId`、`timestamp` 是消息信封字段，不属于
+`ResourceTransitionData`。事件里刻意不提供 `streamId`，因为当前 WebSocket
+会话已经限定了 stream 范围。如果平台下发的 payload 缺少任一资源 ID，或任一资源
+ID 为空白字符串，SDK 会丢弃该事件，不会触发 `onResourceTransition`。
 
 ### AvatarAgentConfig
 
