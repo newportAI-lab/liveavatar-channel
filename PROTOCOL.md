@@ -87,7 +87,6 @@ sequenceDiagram
     AppServer->>Platform: /session/start { avatarId, mode: "websocketAgent" } (API Key)
     Platform->>Avatar: Start avatar
     Avatar->>RTC: Join room (identity: renderer_{sessionId})
-    Platform->>RTC: Join room (identity: coordinator_{sessionId})
     Avatar->>Platform: Start complete
     Platform->>AppServer: { sessionId, userToken, agentWsUrl, sfuUrl }
     AppServer-->>Platform: Establish WebSocket connection via agentWsUrl
@@ -97,7 +96,8 @@ sequenceDiagram
     User->>RTC: Join room (userToken)
     User-->>RTC: Publish text/audio stream
 
-    Platform-->>RTC: Subscribe to user text/audio stream
+    Avatar-->>RTC: Subscribe to user text/audio stream
+    Note right of Avatar: Renderer forwards data to coordinator internally
     Platform->>AppServer: Forward to developer backend via WebSocket
 
     alt Platform TTS configured
@@ -168,7 +168,7 @@ Audio is always mono PCM/Opus at the protocol level. Channel count and sample de
 
 #### Live Avatar Service → Developer Backend (scene.ready forwarded)
 
-After the user's frontend joins the LiveKit room and the avatar scene renders, the user sends `scene.ready` via Data Channel. The coordinator bridges this to the agent via WebSocket so the agent knows it can begin the conversation.
+After the user's frontend joins the LiveKit room and the avatar scene renders, the user sends `scene.ready` via Data Channel. The renderer receives it and the coordinator bridges it to the agent via WebSocket so the agent knows it can begin the conversation.
 
 ```json
 {
@@ -181,8 +181,8 @@ After the user's frontend joins the LiveKit room and the avatar scene renders, t
 #### Live Avatar Service → Developer Backend (scene.resourceTransition)
 
 When the renderer finishes the current video and is about to switch to the next
-configured video resource, the coordinator forwards this notification to the
-agent over the existing agent WebSocket connection.
+configured video resource, the renderer notifies the coordinator, which forwards
+this notification to the agent over the existing agent WebSocket connection.
 
 ```json
 {

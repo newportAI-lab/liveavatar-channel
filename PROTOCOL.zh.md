@@ -85,7 +85,6 @@ sequenceDiagram
     AppServer->>Platform: /session/start { avatarId, mode: "websocketAgent" } (API Key)
     Platform->>Avatar: 启动数字人
     Avatar->>RTC: 加入房间 (identity: renderer_{sessionId})
-    Platform->>RTC: 加入房间 (identity: coordinator_{sessionId})
     Avatar->>Platform: 启动完成
     Platform->>AppServer: { sessionId, userToken, agentWsUrl, sfuUrl }
     AppServer-->>Platform: 通过 agentWsUrl 建立 WebSocket 连接
@@ -95,7 +94,8 @@ sequenceDiagram
     User->>RTC: 加入房间 (userToken)
     User-->>RTC: 发布文本/音频流
 
-    Platform-->>RTC: 订阅用户文本/音频流
+    Avatar-->>RTC: 订阅用户文本/音频流
+    Note right of Avatar: Renderer 内部转发数据给 coordinator
     Platform->>AppServer: 通过 WebSocket 转发给业务后端
 
     alt 已配置平台 TTS
@@ -164,7 +164,7 @@ sequenceDiagram
 
 #### Client（数字人服务）→ Server（开发者服务）— scene.ready 桥接转发
 
-用户前端加入 LiveKit 房间、数字人画面就绪后，user 通过 Data Channel 发送 `scene.ready`。coordinator 收到后通过 WebSocket 桥接转发给 agent，告知画面已就绪、可以开始对话。
+用户前端加入 LiveKit 房间、数字人画面就绪后，user 通过 Data Channel 发送 `scene.ready`。renderer 收到后由 coordinator 通过 WebSocket 桥接转发给 agent，告知画面已就绪、可以开始对话。
 
 ```json
 {
@@ -176,8 +176,8 @@ sequenceDiagram
 
 #### Client（数字人服务）→ Server（开发者服务）— scene.resourceTransition
 
-renderer 播放完当前视频、即将切换到下一个视频资源时，coordinator
-通过当前 agent WebSocket 连接将该通知转发给 agent。
+renderer 播放完当前视频、即将切换到下一个视频资源时，renderer 通知
+coordinator，由 coordinator 通过当前 agent WebSocket 连接将该通知转发给 agent。
 
 ```json
 {
