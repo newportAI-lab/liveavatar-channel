@@ -33,6 +33,7 @@ We use the term "event" to designate message types. To prevent confusion as the 
 | control | Control signals |
 | system | System behavior |
 | error | Error |
+| scene | Scene rendering |
 | tool (future) | Tool calls |
 
 ---
@@ -44,7 +45,7 @@ Describes "what is being done"
 | Action | Example |
 | --- | --- |
 | init | session.init |
-| ready | session.ready |
+| ready | session.ready, scene.ready |
 | text | input.text |
 | asr | input.asr |
 | chunk | response.chunk |
@@ -52,6 +53,7 @@ Describes "what is being done"
 | interrupt | control.interrupt |
 | prompt | system.prompt |
 | idleTrigger | system.idleTrigger |
+| resourceTransition | scene.resourceTransition |
 
 ---
 
@@ -442,6 +444,19 @@ sequenceDiagram
 
 This message is typically sent proactively by the system just before a timeout is declared.
 
+#### Close (Sent by Developer Service)
+
+The developer may proactively close the session by sending `session.close` with a reason (distinct from the platform-sent `session.closing` notification above). The SDK sends this automatically from `stop()`:
+
+```json
+{
+  "event": "session.close",
+  "data": {
+    "reason": "user_stop"
+  }
+}
+```
+
 ---
 
 ## Scenario 2: Real-time Voice Input
@@ -632,6 +647,8 @@ Prompt audio does not count toward the accumulated user idle time.
   }
 }
 ```
+
+The platform may also send `error` events to the developer (e.g. to report protocol violations). The SDK delivers these via `AgentListener.onError(message)`.
 
 ---
 

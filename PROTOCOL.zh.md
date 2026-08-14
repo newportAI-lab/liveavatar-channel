@@ -33,6 +33,7 @@
 | control | 控制信号 |
 | system | 系统行为 |
 | error | 错误 |
+| scene | 场景渲染 |
 | tool（未来）| 工具调用 |
 
 ---
@@ -44,7 +45,7 @@
 | Action      | 示例                 |
 | ----------- | ------------------ |
 | init        | session.init       |
-| ready       | session.ready      |
+| ready       | session.ready, scene.ready |
 | text        | input.text         |
 | asr         | input.asr          |
 | chunk       | response.chunk     |
@@ -53,6 +54,7 @@
 | interrupt   | control.interrupt  |
 | prompt      | system.prompt      |
 | idleTrigger | system.idleTrigger |
+| resourceTransition | scene.resourceTransition |
 
 ---
 
@@ -436,6 +438,19 @@ sequenceDiagram
 
 这种消息一般是系统判定超时前主动发送的。
 
+#### 关闭会话（开发者服务发送）
+
+开发者也可以主动关闭会话：发送 `session.close` 事件并携带 reason（注意与上文平台下发的 `session.closing` 通知不同）。SDK 的 `stop()` 会自动发送：
+
+```json
+{
+  "event": "session.close",
+  "data": {
+    "reason": "user_stop"
+  }
+}
+```
+
 ---
 
 ## 场景二：实时语音输入
@@ -626,6 +641,8 @@ prompt 音频不参与用户闲置累计计时。
   }
 }
 ```
+
+平台也可能向开发者发送 `error` 事件（如协议违规提示），SDK 会通过 `AgentListener.onError(message)` 分发。
 
 ---
 

@@ -10,6 +10,7 @@ public class EventType {
     public static final String SESSION_READY = "session.ready";
     public static final String SESSION_STATE = "session.state";
     public static final String SESSION_CLOSING = "session.closing";
+    public static final String SESSION_CLOSE = "session.close";
 
     // Input events
     public static final String INPUT_TEXT = "input.text";

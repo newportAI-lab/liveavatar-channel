@@ -37,7 +37,7 @@ public class MessageFormatDemo {
         System.out.println(MessageBuilder.toJson(listeningState));
         System.out.println();
 
-        System.out.println("session.closing:");
+        System.out.println("session.close:");
         Message sessionClose = MessageBuilder.sessionClose("timeout");
         System.out.println(MessageBuilder.toJson(sessionClose));
         System.out.println();

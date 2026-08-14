@@ -37,6 +37,16 @@ public class MessageBuilderTest {
     }
 
     @Test
+    public void testSessionClose() {
+        Message message = MessageBuilder.sessionClose("user_stop");
+
+        assertEquals(EventType.SESSION_CLOSE, message.getEvent());
+
+        CloseReasonData data = JsonUtil.convertData(message.getData(), CloseReasonData.class);
+        assertEquals("user_stop", data.getReason());
+    }
+
+    @Test
     public void testSessionState() {
         Message message = MessageBuilder.sessionState(SessionState.SPEAKING.getValue(), 5);
 

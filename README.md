@@ -41,7 +41,7 @@ SessionInfo info = agent.start();
 ## Features
 
 - **One-call start** — REST + WS + handshake in `agent.start()`
-- **Simple listener** — 10 callbacks, only `onTextInput` required
+- **Simple listener** — 10 callbacks, all default no-op — override only what you need
 - **Developer ASR + Platform TTS** by default — receive raw audio, run ASR+LLM locally, send text back
 - **Developer ASR / TTS** available — full send API for all 4 mode combos
 - **Auto-reconnect** — exponential backoff, enabled by default
@@ -53,7 +53,7 @@ SessionInfo info = agent.start();
 <dependency>
     <groupId>io.github.newportai-lab</groupId>
     <artifactId>liveavatar-channel-sdk</artifactId>
-    <version>1.1.9</version>
+    <version>1.1.10</version>
 </dependency>
 ```
 
@@ -74,18 +74,22 @@ AvatarWebSocketClient (OkHttp3 transport, auto-handshake)
 | Method | Description |
 |--------|-------------|
 | `start()` | Provisions session, connects WS, waits for handshake → `SessionInfo` |
-| `stop()` | Sends `session.close`, disconnects (idempotent) |
+| `stop()` | Sends `session.close` (with reason), disconnects (idempotent) |
+| `sendResponseStart(reqId, audioConfig)` | Configure platform TTS (speed/volume) before chunks |
 | `sendResponseChunk(reqId, text, seq)` | Stream a text chunk (Platform TTS) |
 | `sendResponseDone(reqId)` | End text response |
+| `sendResponseCancel(responseId)` | Cancel a response stream |
 | `sendResponseAudioStart(reqId, resId)` | Begin audio response (Developer TTS) |
 | `sendAudioFrame(frame)` | Send an audio frame |
 | `sendResponseAudioFinish(reqId, resId)` | End audio response |
 | `sendVoiceStart(reqId)` | Notify platform of speech start (Developer ASR) |
+| `sendVoiceFinish(reqId)` | Notify platform user stopped speaking (Developer ASR) |
 | `sendAsrPartial(reqId, seq, text)` | Stream partial ASR result |
 | `sendAsrFinal(reqId, text)` | Send final ASR result |
 | `sendInterrupt()` | Interrupt current avatar speech |
 | `sendPrompt(text)` | Send idle-wake prompt text |
 | `sendPromptAudioStart()` / `sendPromptAudioFinish()` | Idle-wake audio (Developer TTS) |
+| `sendCustomEvent(reqId, event, data)` | Send an application-specific event |
 | `isConnected()` / `getSessionInfo()` | State queries |
 
 ### AgentListener
@@ -94,6 +98,7 @@ AvatarWebSocketClient (OkHttp3 transport, auto-handshake)
 |----------|------|
 | `onTextInput(text, requestId)` | User sent text or platform ASR result |
 | `onSessionInit()` | Handshake complete |
+| `onSceneReady()` | Frontend joined, scene rendered — conversation can begin |
 | `onSessionState(state)` | Avatar state changed |
 | `onResourceTransition(data)` | Renderer is about to switch video resources |
 | `onIdleTrigger(reason, idleMs)` | User inactive — optionally reply with `sendPrompt()` |
@@ -146,6 +151,7 @@ AvatarAgentConfig.builder()
     .developerTts(false)            // true = Developer TTS
     .reconnectEnabled(true)
     .voiceId("voice_...")           // optional voice override
+    .voiceConfig(...)               // optional TTS runtime config (speed, volume, pitch, ...)
     .rtcProvider("livekit")         // optional RTC provider
     .userId("user_...")             // optional
     .build();
@@ -164,7 +170,7 @@ AvatarAgentConfig.builder()
 
 | Config | Receive via AgentListener | Send via AvatarAgent |
 |--------|--------------------------|---------------------|
-| **Developer ASR + Platform TTS** (default) | `onAudioFrame` | `sendVoiceStart`, `sendAsrPartial`, `sendAsrFinal` → `sendResponseChunk`, `sendResponseDone` |
+| **Developer ASR + Platform TTS** (default) | `onAudioFrame` | `sendVoiceStart`, `sendVoiceFinish`, `sendAsrPartial`, `sendAsrFinal` → `sendResponseChunk`, `sendResponseDone` |
 | Platform ASR + Developer TTS | `onTextInput` | `sendResponseAudioStart`, `sendAudioFrame`, `sendResponseAudioFinish` |
 | Platform ASR + Platform TTS | `onTextInput` | `sendResponseChunk`, `sendResponseDone` |
 | Developer ASR + Developer TTS | `onAudioFrame` | ASR events → `sendResponseAudioStart`, `sendAudioFrame`, `sendResponseAudioFinish` |

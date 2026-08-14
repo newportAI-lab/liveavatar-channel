@@ -41,7 +41,7 @@ SessionInfo info = agent.start();
 ## 特性
 
 - **一行启动** — REST + WS + 握手全在 `agent.start()`
-- **简洁回调** — 10 个方法，只需实现 `onTextInput`
+- **简洁回调** — 10 个回调，全部默认空实现 — 按需覆盖
 - **默认开发者 ASR + 平台 TTS** — 接收原始音频，本地跑 ASR+LLM，回传文本
 - **支持开发者自提供 ASR / TTS** — 覆盖全部 4 种模式组合
 - **自动重连** — 指数退避策略，默认开启
@@ -53,7 +53,7 @@ SessionInfo info = agent.start();
 <dependency>
     <groupId>io.github.newportai-lab</groupId>
     <artifactId>liveavatar-channel-sdk</artifactId>
-    <version>1.1.9</version>
+    <version>1.1.10</version>
 </dependency>
 ```
 
@@ -74,18 +74,22 @@ AvatarWebSocketClient（OkHttp3 传输层，自动握手）
 | 方法 | 说明 |
 |------|------|
 | `start()` | 创建会话、连接 WS、等待握手 → `SessionInfo` |
-| `stop()` | 发送 `session.close`，断开连接（可重复调用） |
+| `stop()` | 发送 `session.close`（带 reason），断开连接（可重复调用） |
+| `sendResponseStart(reqId, audioConfig)` | 在 chunk 前配置平台 TTS（语速/音量等） |
 | `sendResponseChunk(reqId, text, seq)` | 流式发送文本（平台 TTS） |
 | `sendResponseDone(reqId)` | 文本回复结束 |
+| `sendResponseCancel(responseId)` | 取消一个回复流 |
 | `sendResponseAudioStart(reqId, resId)` | 开始音频回复（开发者 TTS） |
 | `sendAudioFrame(frame)` | 发送音频帧 |
 | `sendResponseAudioFinish(reqId, resId)` | 音频回复结束 |
 | `sendVoiceStart(reqId)` | 通知平台用户开始说话（开发者 ASR） |
+| `sendVoiceFinish(reqId)` | 通知平台用户停止说话（开发者 ASR） |
 | `sendAsrPartial(reqId, seq, text)` | 流式 ASR 中间结果 |
 | `sendAsrFinal(reqId, text)` | ASR 最终结果 |
 | `sendInterrupt()` | 打断当前数字人播报 |
 | `sendPrompt(text)` | 发送冷场唤醒文本 |
 | `sendPromptAudioStart()` / `sendPromptAudioFinish()` | 冷场唤醒音频（开发者 TTS） |
+| `sendCustomEvent(reqId, event, data)` | 发送自定义事件 |
 | `isConnected()` / `getSessionInfo()` | 状态查询 |
 
 ### AgentListener
@@ -94,6 +98,7 @@ AvatarWebSocketClient（OkHttp3 传输层，自动握手）
 |------|---------|
 | `onTextInput(text, requestId)` | 用户输入文本或平台 ASR 结果 |
 | `onSessionInit()` | 握手完成 |
+| `onSceneReady()` | 前端入会、场景渲染完成 — 可以开始对话 |
 | `onSessionState(state)` | 数字人状态变更 |
 | `onResourceTransition(data)` | renderer 即将切换视频资源 |
 | `onIdleTrigger(reason, idleMs)` | 用户闲置 — 可选回复 `sendPrompt()` |
@@ -144,6 +149,7 @@ AvatarAgentConfig.builder()
     .developerTts(false)            // true = 开发者自提供 TTS
     .reconnectEnabled(true)
     .voiceId("voice_...")           // 可选音色覆盖
+    .voiceConfig(...)               // 可选 TTS 运行时配置（语速、音量、音高等）
     .rtcProvider("livekit")         // 可选 RTC 提供方
     .userId("user_...")             // 可选
     .build();
@@ -162,7 +168,7 @@ AvatarAgentConfig.builder()
 
 | 配置 | 通过 AgentListener 接收 | 通过 AvatarAgent 发送 |
 |------|------------------------|----------------------|
-| **开发者 ASR + 平台 TTS**（默认） | `onAudioFrame` | `sendVoiceStart`, `sendAsrPartial`, `sendAsrFinal` → `sendResponseChunk`, `sendResponseDone` |
+| **开发者 ASR + 平台 TTS**（默认） | `onAudioFrame` | `sendVoiceStart`, `sendVoiceFinish`, `sendAsrPartial`, `sendAsrFinal` → `sendResponseChunk`, `sendResponseDone` |
 | 平台 ASR + 开发者 TTS | `onTextInput` | `sendResponseAudioStart`, `sendAudioFrame`, `sendResponseAudioFinish` |
 | 平台 ASR + 平台 TTS | `onTextInput` | `sendResponseChunk`, `sendResponseDone` |
 | 开发者 ASR + 开发者 TTS | `onAudioFrame` | ASR 事件 → `sendResponseAudioStart`, `sendAudioFrame`, `sendResponseAudioFinish` |

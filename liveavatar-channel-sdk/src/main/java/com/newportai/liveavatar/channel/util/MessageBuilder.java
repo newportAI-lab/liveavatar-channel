@@ -40,10 +40,10 @@ public class MessageBuilder {
     }
 
     /**
-     * Create session.closing message
+     * Create session.close message
      */
     public static Message sessionClose(String reason) {
-        Message message = new Message(EventType.SESSION_CLOSING);
+        Message message = new Message(EventType.SESSION_CLOSE);
         message.setData(new CloseReasonData(reason));
         return message;
     }
