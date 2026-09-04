@@ -17,8 +17,11 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 
 /**
@@ -37,9 +40,9 @@ import java.util.concurrent.atomic.AtomicReference;
  *         .build())
  *     .listener(new AgentListener() {
  *         public void onTextInput(String text, String requestId) {
- *             String reply = callYourAI(text);
- *             agent.sendResponseChunk(requestId, reply, 0);
- *             agent.sendResponseDone(requestId);
+ *             ResponseStream response = agent.beginResponse(requestId);
+ *             response.sendChunk(callYourAI(text));
+ *             response.done();
  *         }
  *     })
  *     .build();
@@ -59,6 +62,8 @@ public class AvatarAgent {
     private final AgentListener listener;
     private final OkHttpClient httpClient;
     private final AtomicReference<State> state = new AtomicReference<>(State.STOPPED);
+    private final ConcurrentMap<String, ResponseStream> activeResponses = new ConcurrentHashMap<>();
+    private final AtomicLong responseSequence = new AtomicLong();
 
     private AvatarAgent(AvatarAgentConfig config, AgentListener listener, OkHttpClient httpClient) {
         this.config = config;
@@ -147,21 +152,42 @@ public class AvatarAgent {
 
     // ── Send: AI Response (Platform TTS) ───────────────────────────────────────
 
+    /** Begin one text response with its own stable response ID. */
+    public ResponseStream beginResponse(String requestId) {
+        requireStarted();
+        ResponseStream stream = newResponse(requestId);
+        ResponseStream existing = activeResponses.putIfAbsent(requestId, stream);
+        if (existing != null) {
+            throw new IllegalStateException(
+                    "An active response already exists for requestId " + requestId);
+        }
+        return stream;
+    }
+
+    /** @deprecated Use {@link #beginResponse(String)} and {@link ResponseStream#start(AudioConfigData)}. */
+    @Deprecated
     public void sendResponseStart(String requestId, AudioConfigData audioConfig)
             throws ConnectionException, MessageSerializationException {
-        State s = requireStarted();
-        s.wsClient.sendMessage(MessageBuilder.responseStart(requestId, "res_" + System.currentTimeMillis(), audioConfig));
+        getOrCreateResponse(requestId).start(audioConfig);
     }
 
+    /** @deprecated Use {@link #beginResponse(String)} and {@link ResponseStream#sendChunk(String)}. */
+    @Deprecated
     public void sendResponseChunk(String requestId, String text, int seq)
             throws ConnectionException, MessageSerializationException {
-        State s = requireStarted();
-        s.wsClient.sendMessage(MessageBuilder.responseChunk(requestId, "res_" + System.currentTimeMillis(), seq, text));
+        getOrCreateResponse(requestId).sendChunk(text, seq);
     }
 
+    /** @deprecated Use {@link ResponseStream#done()}. */
+    @Deprecated
     public void sendResponseDone(String requestId) throws ConnectionException, MessageSerializationException {
-        State s = requireStarted();
-        s.wsClient.sendMessage(MessageBuilder.responseDone(requestId, "res_" + System.currentTimeMillis()));
+        requireStarted();
+        ResponseStream stream = activeResponses.get(requestId);
+        if (stream == null) {
+            throw new IllegalStateException(
+                    "No active response exists for requestId " + requestId);
+        }
+        stream.done();
     }
 
     public void sendResponseCancel(String responseId) throws ConnectionException, MessageSerializationException {
@@ -249,6 +275,31 @@ public class AvatarAgent {
         State s = state.get();
         if (!s.started) throw new IllegalStateException("Not started — call start() first");
         return s;
+    }
+
+    private ResponseStream getOrCreateResponse(String requestId) {
+        requireStarted();
+        ResponseStream existing = activeResponses.get(requestId);
+        if (existing != null) {
+            return existing;
+        }
+        ResponseStream created = newResponse(requestId);
+        existing = activeResponses.putIfAbsent(requestId, created);
+        return existing != null ? existing : created;
+    }
+
+    private ResponseStream newResponse(String requestId) {
+        if (requestId == null || requestId.isEmpty()) {
+            throw new IllegalArgumentException("requestId is required");
+        }
+        AtomicReference<ResponseStream> created = new AtomicReference<>();
+        ResponseStream stream = new ResponseStream(
+                requestId,
+                "res_" + responseSequence.incrementAndGet(),
+                message -> requireStarted().wsClient.sendMessage(message),
+                () -> activeResponses.remove(requestId, created.get()));
+        created.set(stream);
+        return stream;
     }
 
     private String buildStartRequest() {
