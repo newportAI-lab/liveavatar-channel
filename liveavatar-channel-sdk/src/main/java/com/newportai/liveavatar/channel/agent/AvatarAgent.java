@@ -191,6 +191,12 @@ public class AvatarAgent {
     }
 
     public void sendResponseCancel(String responseId) throws ConnectionException, MessageSerializationException {
+        for (ResponseStream stream : activeResponses.values()) {
+            if (stream.getResponseId().equals(responseId)) {
+                stream.cancel();
+                return;
+            }
+        }
         State s = requireStarted();
         s.wsClient.sendMessage(MessageBuilder.responseCancel(responseId));
     }

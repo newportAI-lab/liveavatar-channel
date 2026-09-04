@@ -143,6 +143,17 @@ public class AvatarAgentResponseTest {
         assertEquals(responseId, messages.get(2).getResponseId());
     }
 
+    @Test
+    public void legacyCancelClosesMatchingActiveResponse() throws Exception {
+        Fixture fixture = new Fixture();
+        ResponseStream first = fixture.agent.beginResponse("req_1");
+
+        fixture.agent.sendResponseCancel(first.getResponseId());
+        ResponseStream second = fixture.agent.beginResponse("req_1");
+
+        assertNotEquals(first.getResponseId(), second.getResponseId());
+    }
+
     private static final class Fixture {
         private final RecordingWebSocket webSocket = new RecordingWebSocket();
         private final AvatarAgent agent;
