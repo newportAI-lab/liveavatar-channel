@@ -17,17 +17,18 @@ AvatarAgent agent = AvatarAgent.builder()
         public void onAudioFrame(AudioFrame frame) {
             String text = yourAsr.recognize(frame);
             if (text != null) {
-                String reply = yourLLM.chat(text);
-                agent.sendResponseChunk("req_" + System.currentTimeMillis(), reply, 0);
-                agent.sendResponseDone("req_" + System.currentTimeMillis());
+                String requestId = "req_" + UUID.randomUUID();
+                ResponseStream response = agent.beginResponse(requestId);
+                response.sendChunk(yourLLM.chat(text));
+                response.done();
             }
         }
 
         // 文本输入（平台 ASR 模式）— 用户打字或平台转写
         public void onTextInput(String text, String requestId) {
-            String reply = yourLLM.chat(text);
-            agent.sendResponseChunk(requestId, reply, 0);
-            agent.sendResponseDone(requestId);
+            ResponseStream response = agent.beginResponse(requestId);
+            response.sendChunk(yourLLM.chat(text));
+            response.done();
         }
     })
     .build();
@@ -75,9 +76,10 @@ AvatarWebSocketClient（OkHttp3 传输层，自动握手）
 |------|------|
 | `start()` | 创建会话、连接 WS、等待握手 → `SessionInfo` |
 | `stop()` | 发送 `session.close`（带 reason），断开连接（可重复调用） |
-| `sendResponseStart(reqId, audioConfig)` | 在 chunk 前配置平台 TTS（语速/音量等） |
-| `sendResponseChunk(reqId, text, seq)` | 流式发送文本（平台 TTS） |
-| `sendResponseDone(reqId)` | 文本回复结束 |
+| `beginResponse(reqId)` | 创建持有固定 responseId 的 `ResponseStream`（推荐） |
+| `ResponseStream.start(audioConfig)` | 在首个 chunk 前配置平台 TTS |
+| `ResponseStream.sendChunk(text)` / `done()` / `cancel()` | 安全地流式发送并结束一个回复 |
+| `sendResponseStart`、`sendResponseChunk`、`sendResponseDone` | 已弃用的兼容 API |
 | `sendResponseCancel(responseId)` | 取消一个回复流 |
 | `sendResponseAudioStart(reqId, resId)` | 开始音频回复（开发者 TTS） |
 | `sendAudioFrame(frame)` | 发送音频帧 |
@@ -215,9 +217,9 @@ curl -X POST http://localhost:8080/api/session/stop \
 ```java
 @Override
 public void onTextInput(String text, String requestId) {
-    String reply = yourLLM.chat(text);
-    agent.sendResponseChunk(requestId, reply, 0);
-    agent.sendResponseDone(requestId);
+    ResponseStream response = agent.beginResponse(requestId);
+    response.sendChunk(yourLLM.chat(text));
+    response.done();
 }
 ```
 

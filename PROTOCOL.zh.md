@@ -319,11 +319,18 @@ SDK 类型数据中没有 `streamId`。当前 WebSocket 会话已经限定了 st
 
 ---
 
-requestId → responseId = 1:N
+同一个逻辑 response 的可选 `response.start`、所有 `response.chunk` 和最终
+`response.done` **必须**携带完全相同的 `requestId` 和 `responseId`。
+`response.cancel` 通过同一个 `responseId` 标识该回复流。最后一个文本
+chunk 之后必须发送 `response.done`，除非该回复被显式取消。
 
-seq = response 内递增。
+requestId → responseId = 1:N 表示一个 request 可以随时间产生多个不同的
+response，并不表示每个 chunk 使用一个 responseId。`seq` 在同一个 response
+内递增。开始同一 request 的下一个 response 前，必须先结束或取消当前
+response。
 
-response 可以是多个 agent 回复的。
+一个 response 可以包含多个 agent 的回复，但它的所有 chunk 仍必须共享同一个
+responseId。
 
 ---
 
@@ -367,6 +374,8 @@ seq = session 内递增。所有 state 值（后续可能扩展）：
 开发者服务发起的**程序化主动打断**信号，适用于非用户输入事件触发的场景（如后端超时、业务逻辑强制打断等）。
 
 数字人服务在收到任何新的用户输入事件（`input.text` 或 `input.voice.start`）时，会**自动清空 RTC 播放缓冲区**。在这些正常输入流程中，开发者只需在内部取消当前 LLM/TTS 任务，无需额外发送 `control.interrupt`。
+
+不要在发送下一轮回复前无条件发送 `control.interrupt`；只有确实发生程序化打断时才发送。
 
 打断时传入 requestId 可以帮助精准打断指定的对话，避免因为网络抖动导致误打断，也可以不填。
 

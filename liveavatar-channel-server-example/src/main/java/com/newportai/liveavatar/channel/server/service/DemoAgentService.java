@@ -101,8 +101,9 @@ public class DemoAgentService implements AgentListener {
 
         // TODO: Replace with your AI call, e.g.:
         //   String reply = llmService.chat(text);
-        //   agent.sendResponseChunk(requestId, reply, 0);
-        //   agent.sendResponseDone(requestId);
+        //   ResponseStream response = agent.beginResponse(requestId);
+        //   response.sendChunk(reply);
+        //   response.done();
     }
 
     @Override

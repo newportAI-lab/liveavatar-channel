@@ -325,11 +325,19 @@ Sent by the Developer Service **before** the first `response.chunk`. Use this to
 
 ---
 
-requestId → responseId = 1:N
+One logical response **MUST** keep the same `requestId` and `responseId`
+across its optional `response.start`, every `response.chunk`, and its terminal
+`response.done`. A `response.cancel` identifies that same stream by its
+`responseId`. The final text chunk must be followed by `response.done`, unless
+the response is explicitly cancelled.
 
-`seq` increments sequentially within a single response.
+requestId → responseId = 1:N means one request may have multiple distinct
+responses over time. It does **not** mean one response ID per chunk. `seq`
+increments within one response. Finish or cancel the active response before
+starting another response for the same request.
 
-A single response may consist of replies from multiple agents.
+A single response may consist of replies from multiple agents, but all of its
+chunks still share one response ID.
 
 ---
 
@@ -373,6 +381,9 @@ A single response may consist of replies from multiple agents.
 A signal for **explicit programmatic interruption**, initiated by the Developer Service in scenarios not triggered by any user input event (e.g., backend timeout, business-logic override).
 
 The Live Avatar Service automatically clears the RTC playback buffer whenever it receives a new user input event (`input.text` or `input.voice.start`). In those flows the developer only needs to cancel the internal LLM/TTS task — no explicit `control.interrupt` is required.
+
+Do not send `control.interrupt` unconditionally before the next response. Send
+it only when an actual programmatic interruption is required.
 
 Providing `requestId` helps ensure that a specific, designated conversation is interrupted precisely, preventing erroneous interruptions caused by network instability. This field is optional.
 

@@ -20,9 +20,9 @@ import com.newportai.liveavatar.channel.model.SessionState;
  *     .listener(new AgentListener() {
  *         @Override
  *         public void onTextInput(String text, String requestId) {
- *             String reply = callYourAI(text);
- *             agent.sendResponseChunk(requestId, reply, 0);
- *             agent.sendResponseDone(requestId);
+ *             ResponseStream response = agent.beginResponse(requestId);
+ *             response.sendChunk(callYourAI(text));
+ *             response.done();
  *         }
  *     })
  *     .build();
@@ -36,7 +36,7 @@ public interface AgentListener {
      * This is the primary callback — it fires for both typed text and platform-ASR results.
      *
      * @param text      the user's message
-     * @param requestId platform-issued request identifier (use with response send methods)
+     * @param requestId platform-issued request identifier (use with {@link AvatarAgent#beginResponse(String)})
      */
     default void onTextInput(String text, String requestId) {}
 

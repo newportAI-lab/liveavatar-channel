@@ -115,8 +115,9 @@ recommend `beginResponse` and label the legacy methods deprecated.
 The protocol documents will state explicitly:
 
 - One logical response has one stable `responseId`.
-- All chunks and the terminal message carry the same `requestId` and
-  `responseId`.
+- The optional start, all chunks, and `response.done` carry the same
+  `requestId` and `responseId`; `response.cancel` identifies the same stream by
+  its `responseId`.
 - `requestId -> responseId = 1:N` means multiple distinct, sequential
   responses may belong to one request; it does not mean one response ID per
   chunk.
@@ -143,4 +144,3 @@ Tests will cover the observable messages sent by both APIs:
 
 Implementation will follow test-driven development: each behavior is first
 captured by a failing test, then the minimum production change is added.
-

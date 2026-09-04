@@ -17,17 +17,18 @@ AvatarAgent agent = AvatarAgent.builder()
         public void onAudioFrame(AudioFrame frame) {
             String text = yourAsr.recognize(frame);
             if (text != null) {
-                String reply = yourLLM.chat(text);
-                agent.sendResponseChunk("req_" + System.currentTimeMillis(), reply, 0);
-                agent.sendResponseDone("req_" + System.currentTimeMillis());
+                String requestId = "req_" + UUID.randomUUID();
+                ResponseStream response = agent.beginResponse(requestId);
+                response.sendChunk(yourLLM.chat(text));
+                response.done();
             }
         }
 
         // Text input (Platform ASR mode) — user typed or platform transcribed
         public void onTextInput(String text, String requestId) {
-            String reply = yourLLM.chat(text);
-            agent.sendResponseChunk(requestId, reply, 0);
-            agent.sendResponseDone(requestId);
+            ResponseStream response = agent.beginResponse(requestId);
+            response.sendChunk(yourLLM.chat(text));
+            response.done();
         }
     })
     .build();
@@ -75,9 +76,10 @@ AvatarWebSocketClient (OkHttp3 transport, auto-handshake)
 |--------|-------------|
 | `start()` | Provisions session, connects WS, waits for handshake → `SessionInfo` |
 | `stop()` | Sends `session.close` (with reason), disconnects (idempotent) |
-| `sendResponseStart(reqId, audioConfig)` | Configure platform TTS (speed/volume) before chunks |
-| `sendResponseChunk(reqId, text, seq)` | Stream a text chunk (Platform TTS) |
-| `sendResponseDone(reqId)` | End text response |
+| `beginResponse(reqId)` | Begin a `ResponseStream` with one stable response ID (recommended) |
+| `ResponseStream.start(audioConfig)` | Configure platform TTS before the first chunk |
+| `ResponseStream.sendChunk(text)` / `done()` / `cancel()` | Stream and terminate one response safely |
+| `sendResponseStart`, `sendResponseChunk`, `sendResponseDone` | Deprecated compatibility API |
 | `sendResponseCancel(responseId)` | Cancel a response stream |
 | `sendResponseAudioStart(reqId, resId)` | Begin audio response (Developer TTS) |
 | `sendAudioFrame(frame)` | Send an audio frame |
@@ -217,9 +219,9 @@ Edit `DemoAgentService.onTextInput()` — replace the echo AI with your own:
 ```java
 @Override
 public void onTextInput(String text, String requestId) {
-    String reply = yourLLM.chat(text);
-    agent.sendResponseChunk(requestId, reply, 0);
-    agent.sendResponseDone(requestId);
+    ResponseStream response = agent.beginResponse(requestId);
+    response.sendChunk(yourLLM.chat(text));
+    response.done();
 }
 ```
 
