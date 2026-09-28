@@ -140,6 +140,31 @@ public class MessageBuilder {
         return message;
     }
 
+    public static Message systemPromptStart(String requestId, String responseId) {
+        Message message = new Message(EventType.SYSTEM_PROMPT_START);
+        message.setRequestId(requestId);
+        message.setResponseId(responseId);
+        return message;
+    }
+
+    public static Message systemPromptChunk(String requestId, String responseId, int seq,
+                                            long timestamp, String text) {
+        Message message = new Message(EventType.SYSTEM_PROMPT_CHUNK);
+        message.setRequestId(requestId);
+        message.setResponseId(responseId);
+        message.setSeq(seq);
+        message.setTimestamp(timestamp);
+        message.setData(new TextData(text));
+        return message;
+    }
+
+    public static Message systemPromptDone(String requestId, String responseId) {
+        Message message = new Message(EventType.SYSTEM_PROMPT_DONE);
+        message.setRequestId(requestId);
+        message.setResponseId(responseId);
+        return message;
+    }
+
     /**
      * Create system.idleTrigger message
      */

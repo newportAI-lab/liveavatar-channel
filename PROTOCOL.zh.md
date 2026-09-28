@@ -614,6 +614,22 @@ Binary Frame 持续转发，格式与[音频协议](#音频协议设计仅-webso
 
 prompt 文本不参与用户闲置累计计时。
 
+#### 流式 system prompt
+
+新接入可以用一个固定的 response identity 流式发送 prompt：
+
+```json
+{"event":"system.prompt.start","requestId":"course-step-42","responseId":"prompt-uuid"}
+{"event":"system.prompt.chunk","requestId":"course-step-42","responseId":"prompt-uuid","seq":1,"timestamp":1788960000000,"data":{"text":"现在我们来看下一题。"}}
+{"event":"system.prompt.done","requestId":"course-step-42","responseId":"prompt-uuid"}
+```
+
+三类消息的 `requestId`、`responseId` 均必填且非空，同一条流始终复用相同 ID。
+chunk 的 `seq` 从 1 开始并按 response 单调递增。start 后可以立即发送 chunk，
+不需要等待 `ACCEPTED`。相同 seq 和文本的重复消息按幂等处理；序号冲突、跳跃或
+done 后继续发送 chunk 都是协议错误。`system.prompt.done` 只表示生产方不再发送
+文本，不表示播报完成。上面的旧 `system.prompt` one-shot 格式继续兼容。
+
 ### 3️⃣ 闲置提醒开始语音消息（开发者服务发）
 
 ```json
@@ -633,6 +649,40 @@ prompt 文本不参与用户闲置累计计时。
 `ttsProvider=developer` 时，开发者服务可以发送闲置提醒开始消息，随后推送对应的提醒语音，并在 prompt 音频推送完毕后发送闲置提醒结束消息。
 
 prompt 音频不参与用户闲置累计计时。
+
+## Response 生命周期
+
+平台会为已建立 identity 的 response 发布生命周期事件：
+
+```json
+{
+  "event": "response.state",
+  "sessionId": "session-123",
+  "requestId": "course-step-42",
+  "responseId": "prompt-uuid",
+  "seq": 128,
+  "timestamp": 1788960000000,
+  "data": {"state": "FINISHED", "reason": "COMPLETED"}
+}
+```
+
+当前状态为 `ACCEPTED`、`REJECTED` 和 `FINISHED`，其中 `ACCEPTED` 没有 reason。
+当前终态原因为 `COMPLETED`、`USER_COMMAND_INTERRUPT`、
+`DEVELOPER_COMMAND_INTERRUPT`、`FAILED`、`RENDERER_FAILED`、
+`STATE_TRANSITION_FAILED`、`INTERNAL_ERROR`、`SESSION_CLOSED`、
+`INVALID_REQUEST`、`SESSION_BUSY`、`RESPONSE_ID_CONFLICT`、
+`REQUEST_ID_CONFLICT`、`SEQUENCE_CONFLICT`、`SEQUENCE_GAP` 和
+`STREAM_ALREADY_DONE`。接收方必须兼容未来新增的 state 与 reason。
+
+response identity 由 `(sessionId, responseId)` 限定。汇聚多条接收通道时，接收方
+按 `(sessionId, seq)` 对在线事件排序和去重，丢弃重复或更旧的值，但允许 seq
+存在缺口。第一个 `REJECTED` 或 `FINISHED` 终态胜出，后续事件不能覆盖它。
+即使 response 不是由当前进程创建，SDK 仍须把事件交给业务回调。
+
+业务完成必须匹配正在等待的 response，并且仅接受 `FINISHED/COMPLETED`。
+`session.state=IDLE`、`response.done`、`system.prompt.done`、
+`response.audio.finish` 和媒体 track EOS 都不是 response 播报完成信号。
+当前没有可靠的 `PLAYING` 状态，也没有断线重连后的持久化 lifecycle replay。
 
 ---
 

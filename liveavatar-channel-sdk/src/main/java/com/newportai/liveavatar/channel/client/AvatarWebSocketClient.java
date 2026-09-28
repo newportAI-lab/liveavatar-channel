@@ -227,6 +227,17 @@ public class AvatarWebSocketClient {
                 if (d != null) listener.onSessionState(SessionState.fromValue(d.getState()));
                 break;
             }
+            case EventType.RESPONSE_STATE: {
+                ResponseStateData d = JsonUtil.convertData(message.getData(), ResponseStateData.class);
+                if (d != null) {
+                    listener.onResponseState(new ResponseStateEvent(
+                            message.getSessionId(), message.getRequestId(), message.getResponseId(),
+                            message.getSeq() != null ? message.getSeq() : 0L,
+                            message.getTimestamp() != null ? message.getTimestamp() : 0L,
+                            d.getState(), d.getReason()));
+                }
+                break;
+            }
             case EventType.SCENE_RESOURCE_TRANSITION: {
                 ResourceTransitionData d = JsonUtil.convertData(message.getData(), ResourceTransitionData.class);
                 if (d != null && d.hasRequiredResourceIds()) {

@@ -4,7 +4,10 @@ import com.newportai.liveavatar.channel.exception.ConnectionException;
 import com.newportai.liveavatar.channel.exception.MessageSerializationException;
 import com.newportai.liveavatar.channel.model.AudioConfigData;
 import com.newportai.liveavatar.channel.model.Message;
+import com.newportai.liveavatar.channel.model.ResponseStateEvent;
 import com.newportai.liveavatar.channel.util.MessageBuilder;
+
+import java.util.concurrent.CompletableFuture;
 
 /** A single streamed text response with a stable request and response identity. */
 public final class ResponseStream {
@@ -17,12 +20,19 @@ public final class ResponseStream {
     private final String responseId;
     private final MessageSender sender;
     private final Runnable onTerminal;
+    private final ResponseLifecycle lifecycle;
     private int nextSeq;
     private boolean started;
     private boolean chunkSent;
     private boolean terminal;
 
     ResponseStream(String requestId, String responseId, MessageSender sender, Runnable onTerminal) {
+        this(requestId, responseId, sender, onTerminal,
+                new ResponseLifecycle(requestId, responseId));
+    }
+
+    ResponseStream(String requestId, String responseId, MessageSender sender, Runnable onTerminal,
+                   ResponseLifecycle lifecycle) {
         if (requestId == null || requestId.isEmpty()) {
             throw new IllegalArgumentException("requestId is required");
         }
@@ -33,6 +43,7 @@ public final class ResponseStream {
         this.responseId = responseId;
         this.sender = sender;
         this.onTerminal = onTerminal;
+        this.lifecycle = lifecycle;
     }
 
     public String getRequestId() {
@@ -41,6 +52,20 @@ public final class ResponseStream {
 
     public String getResponseId() {
         return responseId;
+    }
+
+    /** Most recent lifecycle state published by the platform, or {@code null}. */
+    public ResponseStateEvent getLatestState() {
+        return lifecycle.getLatestState();
+    }
+
+    /** Completes with the first platform {@code REJECTED} or {@code FINISHED} event. */
+    public CompletableFuture<ResponseStateEvent> getTerminalFuture() {
+        return lifecycle.getTerminalFuture();
+    }
+
+    ResponseLifecycle lifecycle() {
+        return lifecycle;
     }
 
     public synchronized void start(AudioConfigData audioConfig)

@@ -24,6 +24,7 @@ public class EventType {
     public static final String RESPONSE_CHUNK = "response.chunk";
     public static final String RESPONSE_DONE = "response.done";
     public static final String RESPONSE_CANCEL = "response.cancel";
+    public static final String RESPONSE_STATE = "response.state";
     public static final String RESPONSE_AUDIO_START = "response.audio.start";
     public static final String RESPONSE_AUDIO_FINISH = "response.audio.finish";
     public static final String RESPONSE_AUDIO_PROMPT_START = "response.audio.promptStart";
@@ -34,6 +35,9 @@ public class EventType {
 
     // System events
     public static final String SYSTEM_PROMPT = "system.prompt";
+    public static final String SYSTEM_PROMPT_START = "system.prompt.start";
+    public static final String SYSTEM_PROMPT_CHUNK = "system.prompt.chunk";
+    public static final String SYSTEM_PROMPT_DONE = "system.prompt.done";
     public static final String SYSTEM_IDLE_TRIGGER = "system.idleTrigger";
 
     // Scene events (LiveKit DataChannel / Scenario 4)

@@ -30,6 +30,13 @@ AvatarAgent agent = AvatarAgent.builder()
             response.sendChunk(yourLLM.chat(text));
             response.done();
         }
+
+        public void onResponseState(ResponseStateEvent event) {
+            if ("FINISHED".equals(event.getState())
+                    && "COMPLETED".equals(event.getReason())) {
+                onPlaybackCompleted(event.getRequestId(), event.getResponseId());
+            }
+        }
     })
     .build();
 
@@ -42,7 +49,9 @@ SessionInfo info = agent.start();
 ## Features
 
 - **One-call start** — REST + WS + handshake in `agent.start()`
-- **Simple listener** — 10 callbacks, all default no-op — override only what you need
+- **Response lifecycle** — correlate playback completion with `requestId` and `responseId`
+- **Streaming prompts** — stable identity and thread-safe chunk sequencing
+- **Simple listener** — callbacks are default no-op — override only what you need
 - **Developer ASR + Platform TTS** by default — receive raw audio, run ASR+LLM locally, send text back
 - **Developer ASR / TTS** available — full send API for all 4 mode combos
 - **Auto-reconnect** — exponential backoff, enabled by default
@@ -54,7 +63,7 @@ SessionInfo info = agent.start();
 <dependency>
     <groupId>io.github.newportai-lab</groupId>
     <artifactId>liveavatar-channel-sdk</artifactId>
-    <version>1.2.0</version>
+    <version>1.3.0</version>
 </dependency>
 ```
 
@@ -90,6 +99,8 @@ AvatarWebSocketClient (OkHttp3 transport, auto-handshake)
 | `sendAsrFinal(reqId, text)` | Send final ASR result |
 | `sendInterrupt()` | Interrupt current avatar speech |
 | `sendPrompt(text)` | Send idle-wake prompt text |
+| `beginPrompt(reqId[, responseId])` | Begin a lifecycle-aware `PromptStream` |
+| `PromptStream.sendChunk(text)` / `done()` | Stream prompt text; `done()` ends input only |
 | `sendPromptAudioStart()` / `sendPromptAudioFinish()` | Idle-wake audio (Developer TTS) |
 | `sendCustomEvent(reqId, event, data)` | Send an application-specific event |
 | `isConnected()` / `getSessionInfo()` | State queries |
@@ -102,6 +113,7 @@ AvatarWebSocketClient (OkHttp3 transport, auto-handshake)
 | `onSessionInit()` | Handshake complete |
 | `onSceneReady()` | Frontend joined, scene rendered — conversation can begin |
 | `onSessionState(state)` | Avatar state changed |
+| `onResponseState(event)` | Response accepted, rejected, or finished |
 | `onResourceTransition(data)` | Renderer is about to switch video resources |
 | `onIdleTrigger(reason, idleMs)` | User inactive — optionally reply with `sendPrompt()` |
 | `onSessionClosing(reason)` | Platform about to close session |
@@ -110,6 +122,19 @@ AvatarWebSocketClient (OkHttp3 transport, auto-handshake)
 | `onClosed(code, reason)` | Connection closed |
 
 All methods have default no-op bodies — only override what you need.
+
+### Response completion
+
+Use `ResponseStream.getTerminalFuture()`, `PromptStream.getTerminalFuture()`,
+or `onResponseState` to observe the first platform terminal event. Advance
+business workflows only when the event belongs to the response being awaited
+and has `state=FINISHED` with `reason=COMPLETED`.
+
+`ResponseStream.done()`, `PromptStream.done()`, `response.audio.finish`, and
+`session.state=IDLE` do not mean avatar playback has completed. An interrupted
+response finishes with an interrupt reason and must not be mistaken for a
+successful completion. The legacy `sendPrompt(text)` API remains available and
+keeps its original one-shot wire format.
 
 #### Video Resource Transition Callback
 

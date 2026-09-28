@@ -4,6 +4,7 @@ import com.newportai.liveavatar.channel.agent.AgentListener;
 import com.newportai.liveavatar.channel.model.EventType;
 import com.newportai.liveavatar.channel.model.Message;
 import com.newportai.liveavatar.channel.model.ResourceTransitionData;
+import com.newportai.liveavatar.channel.model.ResponseStateEvent;
 import com.newportai.liveavatar.channel.util.JsonUtil;
 import okhttp3.Request;
 import okhttp3.WebSocket;
@@ -13,12 +14,67 @@ import org.junit.Test;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
 public class AvatarWebSocketClientTest {
+
+    @Test
+    public void testResponseStateDispatchesCompleteLifecycleEvent() throws Exception {
+        AtomicReference<ResponseStateEvent> received = new AtomicReference<>();
+        AvatarWebSocketClient client = new AvatarWebSocketClient("ws://localhost", new AgentListener() {
+            @Override
+            public void onResponseState(ResponseStateEvent event) {
+                received.set(event);
+            }
+        });
+
+        invokeHandleMessage(client, JsonUtil.fromJson("{"
+                + "\"event\":\"response.state\","
+                + "\"sessionId\":\"session-123\","
+                + "\"requestId\":\"request-42\","
+                + "\"responseId\":\"response-7\","
+                + "\"seq\":128,"
+                + "\"timestamp\":1788960000000,"
+                + "\"data\":{\"state\":\"FINISHED\",\"reason\":\"COMPLETED\"}"
+                + "}"));
+
+        ResponseStateEvent event = received.get();
+        assertEquals("session-123", event.getSessionId());
+        assertEquals("request-42", event.getRequestId());
+        assertEquals("response-7", event.getResponseId());
+        assertEquals(128L, event.getSeq());
+        assertEquals(1788960000000L, event.getTimestamp());
+        assertEquals("FINISHED", event.getState());
+        assertEquals("COMPLETED", event.getReason());
+    }
+
+    @Test
+    public void testResponseStatePreservesUnknownStateAndReason() throws Exception {
+        AtomicReference<ResponseStateEvent> received = new AtomicReference<>();
+        AvatarWebSocketClient client = new AvatarWebSocketClient("ws://localhost", new AgentListener() {
+            @Override
+            public void onResponseState(ResponseStateEvent event) {
+                received.set(event);
+            }
+        });
+
+        invokeHandleMessage(client, JsonUtil.fromJson("{"
+                + "\"event\":\"response.state\","
+                + "\"sessionId\":\"session-123\","
+                + "\"requestId\":\"request-42\","
+                + "\"responseId\":\"response-7\","
+                + "\"seq\":129,"
+                + "\"timestamp\":1788960000001,"
+                + "\"data\":{\"state\":\"PLAYING_V2\",\"reason\":\"NEW_REASON\",\"futureField\":true}"
+                + "}"));
+
+        assertEquals("PLAYING_V2", received.get().getState());
+        assertEquals("NEW_REASON", received.get().getReason());
+    }
 
     @Test
     public void testSceneReadyDispatchesToListener() throws Exception {
@@ -151,5 +207,12 @@ public class AvatarWebSocketClientTest {
         @Override
         public void cancel() {
         }
+    }
+
+    private static void invokeHandleMessage(AvatarWebSocketClient client, Message message)
+            throws Exception {
+        Method handleMessage = AvatarWebSocketClient.class.getDeclaredMethod("handleMessage", Message.class);
+        handleMessage.setAccessible(true);
+        handleMessage.invoke(client, message);
     }
 }

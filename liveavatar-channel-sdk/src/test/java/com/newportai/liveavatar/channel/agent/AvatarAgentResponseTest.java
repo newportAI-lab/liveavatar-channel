@@ -1,8 +1,13 @@
 package com.newportai.liveavatar.channel.agent;
 
 import com.newportai.liveavatar.channel.client.AvatarWebSocketClient;
+import com.newportai.liveavatar.channel.exception.ConnectionException;
+import com.newportai.liveavatar.channel.exception.MessageSerializationException;
 import com.newportai.liveavatar.channel.model.AudioConfigData;
+import com.newportai.liveavatar.channel.model.EventType;
 import com.newportai.liveavatar.channel.model.Message;
+import com.newportai.liveavatar.channel.model.ResponseStateEvent;
+import com.newportai.liveavatar.channel.model.SessionState;
 import com.newportai.liveavatar.channel.util.JsonUtil;
 import okhttp3.Request;
 import okhttp3.WebSocket;
@@ -17,13 +22,107 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertThrows;
 
 public class AvatarAgentResponseTest {
+
+    @Test
+    public void promptLifecycleIsRegisteredBeforeStartIsSent() throws Exception {
+        AtomicReference<AvatarAgent> owner = new AtomicReference<>();
+        AvatarWebSocketClient client = new AvatarWebSocketClient(
+                "ws://localhost", new AgentListener() { }) {
+            @Override
+            public void sendMessage(Message message)
+                    throws MessageSerializationException, ConnectionException {
+                if (EventType.SYSTEM_PROMPT_START.equals(message.getEvent())) {
+                    owner.get().handleResponseState(event(
+                            "session", message.getRequestId(), message.getResponseId(), 1,
+                            "FINISHED", "COMPLETED"));
+                }
+            }
+        };
+        AvatarAgent agent = AvatarAgent.builder()
+                .config(AvatarAgentConfig.builder().apiKey("test").avatarId("test").build())
+                .listener(new AgentListener() { })
+                .build();
+        owner.set(agent);
+        setStartedState(agent, client);
+
+        PromptStream prompt = agent.beginPrompt("req_1", "prompt_1");
+
+        assertEquals("COMPLETED",
+                prompt.getTerminalFuture().get(1, TimeUnit.SECONDS).getReason());
+    }
+
+    @Test
+    public void lifecycleDeduplicatesBySessionSequenceAndAcceptsGaps() throws Exception {
+        AtomicInteger delivered = new AtomicInteger();
+        Fixture fixture = new Fixture(new AgentListener() {
+            @Override
+            public void onResponseState(ResponseStateEvent event) {
+                delivered.incrementAndGet();
+            }
+        });
+        ResponseStream response = fixture.agent.beginResponse("req_1");
+
+        fixture.agent.handleResponseState(event("session", "req_1", response.getResponseId(), 10,
+                "ACCEPTED", null));
+        fixture.agent.handleResponseState(event("session", "req_1", response.getResponseId(), 10,
+                "FINISHED", "FAILED"));
+        fixture.agent.handleResponseState(event("session", "req_1", response.getResponseId(), 9,
+                "FINISHED", "FAILED"));
+        fixture.agent.handleResponseState(event("session", "req_1", response.getResponseId(), 15,
+                "FINISHED", "COMPLETED"));
+
+        assertEquals(2, delivered.get());
+        assertEquals("FINISHED", response.getLatestState().getState());
+        assertEquals("COMPLETED", response.getTerminalFuture().get(1, TimeUnit.SECONDS).getReason());
+    }
+
+    @Test
+    public void lifecycleFirstTerminalWinsAndDoneOrIdleDoNotCompleteIt() throws Exception {
+        Fixture fixture = new Fixture();
+        ResponseStream response = fixture.agent.beginResponse("req_1");
+
+        response.done();
+        fixture.listener.onSessionState(SessionState.IDLE);
+        assertFalse(response.getTerminalFuture().isDone());
+
+        fixture.agent.handleResponseState(event("session", "req_1", response.getResponseId(), 1,
+                "FINISHED", "USER_COMMAND_INTERRUPT"));
+        fixture.agent.handleResponseState(event("session", "req_1", response.getResponseId(), 2,
+                "FINISHED", "COMPLETED"));
+
+        assertEquals("USER_COMMAND_INTERRUPT",
+                response.getTerminalFuture().get(1, TimeUnit.SECONDS).getReason());
+    }
+
+    @Test
+    public void unknownAndIdentityMismatchedLifecycleEventsStillReachListener() throws Exception {
+        AtomicInteger delivered = new AtomicInteger();
+        Fixture fixture = new Fixture(new AgentListener() {
+            @Override
+            public void onResponseState(ResponseStateEvent event) {
+                delivered.incrementAndGet();
+            }
+        });
+        ResponseStream response = fixture.agent.beginResponse("req_1");
+
+        fixture.agent.handleResponseState(event("session", "wrong", response.getResponseId(), 1,
+                "FINISHED", "FAILED"));
+        fixture.agent.handleResponseState(event("session", "external", "external-response", 2,
+                "FINISHED", "COMPLETED"));
+
+        assertEquals(2, delivered.get());
+        assertFalse(response.getTerminalFuture().isDone());
+    }
 
     @Test
     public void beginResponseKeepsOneIdentityUntilDone() throws Exception {
@@ -157,10 +256,16 @@ public class AvatarAgentResponseTest {
     private static final class Fixture {
         private final RecordingWebSocket webSocket = new RecordingWebSocket();
         private final AvatarAgent agent;
+        private final AgentListener listener;
 
         private Fixture() throws Exception {
+            this(new AgentListener() { });
+        }
+
+        private Fixture(AgentListener listener) throws Exception {
+            this.listener = listener;
             AvatarWebSocketClient client = new AvatarWebSocketClient(
-                    "ws://localhost", new AgentListener() { });
+                    "ws://localhost", listener);
             setField(client, "connected", true);
             setField(client, "webSocket", webSocket);
 
@@ -169,7 +274,7 @@ public class AvatarAgentResponseTest {
                             .apiKey("test")
                             .avatarId("test")
                             .build())
-                    .listener(new AgentListener() { })
+                    .listener(listener)
                     .build();
             setStartedState(agent, client);
         }
@@ -181,6 +286,12 @@ public class AvatarAgentResponseTest {
             }
             return messages;
         }
+    }
+
+    private static ResponseStateEvent event(String sessionId, String requestId, String responseId,
+                                            long seq, String state, String reason) {
+        return new ResponseStateEvent(sessionId, requestId, responseId, seq, 1788960000000L,
+                state, reason);
     }
 
     private static void setStartedState(AvatarAgent agent, AvatarWebSocketClient client)

@@ -622,6 +622,25 @@ Upon receiving this message, the Live Avatar Service will use the configured pla
 
 The prompt text does not count toward the accumulated user idle time.
 
+#### Streaming system prompt
+
+New integrations may stream a prompt with one stable response identity:
+
+```json
+{"event":"system.prompt.start","requestId":"course-step-42","responseId":"prompt-uuid"}
+{"event":"system.prompt.chunk","requestId":"course-step-42","responseId":"prompt-uuid","seq":1,"timestamp":1788960000000,"data":{"text":"Now let's look at the next question."}}
+{"event":"system.prompt.done","requestId":"course-step-42","responseId":"prompt-uuid"}
+```
+
+`requestId` and `responseId` are required and non-empty on all three messages.
+Chunk `seq` starts at 1 and increases monotonically per response. All messages
+in the stream reuse the same IDs. Chunks may be sent immediately after start;
+the sender does not wait for `ACCEPTED`. A repeated identical chunk is
+idempotent. A conflicting repeated sequence, a sequence gap, or a chunk after
+done is a protocol error. `system.prompt.done` means only that the producer has
+finished sending text; it does not mean playback has completed. The one-shot
+`system.prompt` format above remains supported for compatibility.
+
 ### 3️⃣ Idle Reminder Start Message (Sent by the Developer Service)
 
 ```json
@@ -641,6 +660,42 @@ The prompt text does not count toward the accumulated user idle time.
 When `ttsProvider=developer`, the Developer Service may send the Idle Reminder Start message, push the corresponding reminder audio, and send the Idle Reminder End message only after the prompt audio transmission is complete.
 
 Prompt audio does not count toward the accumulated user idle time.
+
+## Response Lifecycle
+
+The platform publishes lifecycle events for an identified response:
+
+```json
+{
+  "event": "response.state",
+  "sessionId": "session-123",
+  "requestId": "course-step-42",
+  "responseId": "prompt-uuid",
+  "seq": 128,
+  "timestamp": 1788960000000,
+  "data": {"state": "FINISHED", "reason": "COMPLETED"}
+}
+```
+
+States are `ACCEPTED`, `REJECTED`, and `FINISHED`. `ACCEPTED` has no reason.
+Current terminal reasons are `COMPLETED`, `USER_COMMAND_INTERRUPT`,
+`DEVELOPER_COMMAND_INTERRUPT`, `FAILED`, `RENDERER_FAILED`,
+`STATE_TRANSITION_FAILED`, `INTERNAL_ERROR`, `SESSION_CLOSED`,
+`INVALID_REQUEST`, `SESSION_BUSY`, `RESPONSE_ID_CONFLICT`,
+`REQUEST_ID_CONFLICT`, `SEQUENCE_CONFLICT`, `SEQUENCE_GAP`, and
+`STREAM_ALREADY_DONE`. Receivers must tolerate future state and reason values.
+
+Identity is scoped by `(sessionId, responseId)`. Receivers that merge multiple
+channels deduplicate and order online events by `(sessionId, seq)`, discarding
+duplicate or older values but accepting gaps. The first `REJECTED` or
+`FINISHED` event wins and cannot be overwritten. Events for responses not
+created by the receiving process must still be exposed to application code.
+
+Business completion must match the response being awaited and require
+`FINISHED/COMPLETED`. `session.state=IDLE`, `response.done`,
+`system.prompt.done`, `response.audio.finish`, and media-track EOS are not
+response completion signals. There is currently no reliable `PLAYING` state or
+persistent lifecycle replay after reconnect.
 
 ---
 

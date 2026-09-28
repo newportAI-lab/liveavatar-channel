@@ -107,6 +107,30 @@ public class MessageBuilderTest {
     }
 
     @Test
+    public void testStreamingSystemPromptMessages() {
+        Message start = MessageBuilder.systemPromptStart("req_1", "prompt_1");
+        Message chunk = MessageBuilder.systemPromptChunk(
+                "req_1", "prompt_1", 1, 1788960000000L, "Hello");
+        Message done = MessageBuilder.systemPromptDone("req_1", "prompt_1");
+
+        assertEquals(EventType.SYSTEM_PROMPT_START, start.getEvent());
+        assertEquals("req_1", start.getRequestId());
+        assertEquals("prompt_1", start.getResponseId());
+        assertEquals(EventType.SYSTEM_PROMPT_CHUNK, chunk.getEvent());
+        assertEquals(Integer.valueOf(1), chunk.getSeq());
+        assertEquals(Long.valueOf(1788960000000L), chunk.getTimestamp());
+        assertEquals("Hello", JsonUtil.convertData(chunk.getData(), TextData.class).getText());
+        assertEquals(EventType.SYSTEM_PROMPT_DONE, done.getEvent());
+        assertEquals("req_1", done.getRequestId());
+        assertEquals("prompt_1", done.getResponseId());
+
+        Message legacy = MessageBuilder.systemPrompt("Legacy");
+        assertEquals(EventType.SYSTEM_PROMPT, legacy.getEvent());
+        assertNull(legacy.getRequestId());
+        assertNull(legacy.getResponseId());
+    }
+
+    @Test
     public void testControlInterrupt() {
         Message message = MessageBuilder.controlInterrupt();
 

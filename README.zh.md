@@ -30,6 +30,13 @@ AvatarAgent agent = AvatarAgent.builder()
             response.sendChunk(yourLLM.chat(text));
             response.done();
         }
+
+        public void onResponseState(ResponseStateEvent event) {
+            if ("FINISHED".equals(event.getState())
+                    && "COMPLETED".equals(event.getReason())) {
+                onPlaybackCompleted(event.getRequestId(), event.getResponseId());
+            }
+        }
     })
     .build();
 
@@ -42,7 +49,9 @@ SessionInfo info = agent.start();
 ## 特性
 
 - **一行启动** — REST + WS + 握手全在 `agent.start()`
-- **简洁回调** — 10 个回调，全部默认空实现 — 按需覆盖
+- **Response 生命周期** — 使用 `requestId` 和 `responseId` 精确关联播报完成
+- **流式 Prompt** — 固定 response identity，线程安全地生成 chunk 序号
+- **简洁回调** — 回调全部默认空实现 — 按需覆盖
 - **默认开发者 ASR + 平台 TTS** — 接收原始音频，本地跑 ASR+LLM，回传文本
 - **支持开发者自提供 ASR / TTS** — 覆盖全部 4 种模式组合
 - **自动重连** — 指数退避策略，默认开启
@@ -54,7 +63,7 @@ SessionInfo info = agent.start();
 <dependency>
     <groupId>io.github.newportai-lab</groupId>
     <artifactId>liveavatar-channel-sdk</artifactId>
-    <version>1.2.0</version>
+    <version>1.3.0</version>
 </dependency>
 ```
 
@@ -90,6 +99,8 @@ AvatarWebSocketClient（OkHttp3 传输层，自动握手）
 | `sendAsrFinal(reqId, text)` | ASR 最终结果 |
 | `sendInterrupt()` | 打断当前数字人播报 |
 | `sendPrompt(text)` | 发送冷场唤醒文本 |
+| `beginPrompt(reqId[, responseId])` | 创建可观察生命周期的 `PromptStream` |
+| `PromptStream.sendChunk(text)` / `done()` | 流式发送 prompt；`done()` 仅结束文本输入 |
 | `sendPromptAudioStart()` / `sendPromptAudioFinish()` | 冷场唤醒音频（开发者 TTS） |
 | `sendCustomEvent(reqId, event, data)` | 发送自定义事件 |
 | `isConnected()` / `getSessionInfo()` | 状态查询 |
@@ -102,6 +113,7 @@ AvatarWebSocketClient（OkHttp3 传输层，自动握手）
 | `onSessionInit()` | 握手完成 |
 | `onSceneReady()` | 前端入会、场景渲染完成 — 可以开始对话 |
 | `onSessionState(state)` | 数字人状态变更 |
+| `onResponseState(event)` | response 被接纳、拒绝或完成 |
 | `onResourceTransition(data)` | renderer 即将切换视频资源 |
 | `onIdleTrigger(reason, idleMs)` | 用户闲置 — 可选回复 `sendPrompt()` |
 | `onSessionClosing(reason)` | 平台即将关闭会话 |
@@ -110,6 +122,18 @@ AvatarWebSocketClient（OkHttp3 传输层，自动握手）
 | `onClosed(code, reason)` | 连接关闭 |
 
 所有方法有默认空实现 — 只需覆盖你需要的。
+
+### Response 完成判定
+
+可以通过 `ResponseStream.getTerminalFuture()`、
+`PromptStream.getTerminalFuture()` 或 `onResponseState` 观察平台发布的首个终态。
+业务流程只能在事件属于当前等待的 response，且 `state=FINISHED`、
+`reason=COMPLETED` 时推进。
+
+`ResponseStream.done()`、`PromptStream.done()`、`response.audio.finish` 和
+`session.state=IDLE` 都不表示数字人已经播报完成。被打断的 response 会携带打断原因
+进入终态，不能当成成功完成。旧的 `sendPrompt(text)` API 继续保留，并维持原有
+one-shot 消息格式。
 
 #### 视频资源切换回调
 

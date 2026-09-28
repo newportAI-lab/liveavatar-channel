@@ -23,6 +23,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.UUID;
 
 /**
  * High-level entry point for WebSocket Agent mode.
@@ -63,6 +64,9 @@ public class AvatarAgent {
     private final OkHttpClient httpClient;
     private final AtomicReference<State> state = new AtomicReference<>(State.STOPPED);
     private final ConcurrentMap<String, ResponseStream> activeResponses = new ConcurrentHashMap<>();
+    private final ConcurrentMap<String, ResponseLifecycle> pendingResponses = new ConcurrentHashMap<>();
+    private final Map<String, Long> latestLifecycleSeq = new java.util.HashMap<>();
+    private final Object lifecycleLock = new Object();
     private final AtomicLong responseSequence = new AtomicLong();
 
     private AvatarAgent(AvatarAgentConfig config, AgentListener listener, OkHttpClient httpClient) {
@@ -112,7 +116,7 @@ public class AvatarAgent {
 
         // 2. Wrap listener to intercept onSessionInit for the start() latch
         CountDownLatch readyLatch = new CountDownLatch(1);
-        AgentListener latched = new LatchedListener(listener, readyLatch);
+        AgentListener latched = new LatchedListener(this, listener, readyLatch);
 
         // 3. Connect WebSocket
         AvatarWebSocketClient client = new AvatarWebSocketClient(info.getAgentWsUrl(), latched, httpClient);
@@ -148,6 +152,7 @@ public class AvatarAgent {
         }
         s.wsClient.disableAutoReconnect();
         s.wsClient.disconnect();
+        clearLifecycleTracking();
     }
 
     // ── Send: AI Response (Platform TTS) ───────────────────────────────────────
@@ -161,6 +166,7 @@ public class AvatarAgent {
             throw new IllegalStateException(
                     "An active response already exists for requestId " + requestId);
         }
+        registerLifecycle(stream.getResponseId(), stream.lifecycle());
         return stream;
     }
 
@@ -248,6 +254,30 @@ public class AvatarAgent {
         requireStarted().wsClient.sendMessage(MessageBuilder.systemPrompt(text));
     }
 
+    /** Begin a streaming system prompt with an SDK-generated response ID. */
+    public PromptStream beginPrompt(String requestId)
+            throws ConnectionException, MessageSerializationException {
+        return beginPrompt(requestId, "prompt_" + UUID.randomUUID().toString());
+    }
+
+    /** Begin a streaming system prompt with a caller-provided response ID. */
+    public PromptStream beginPrompt(String requestId, String responseId)
+            throws ConnectionException, MessageSerializationException {
+        State s = requireStarted();
+        ResponseLifecycle lifecycle = new ResponseLifecycle(requestId, responseId);
+        PromptStream stream = new PromptStream(
+                requestId, responseId, message -> requireStarted().wsClient.sendMessage(message), lifecycle);
+        registerLifecycle(responseId, lifecycle);
+        try {
+            s.wsClient.sendMessage(MessageBuilder.systemPromptStart(requestId, responseId));
+            return stream;
+        } catch (ConnectionException | MessageSerializationException e) {
+            pendingResponses.remove(
+                    lifecycleKey(s.sessionInfo.getSessionId(), responseId), lifecycle);
+            throw e;
+        }
+    }
+
     // ── Send: Custom Event ──────────────────────────────────────────────────────
 
     /**
@@ -291,7 +321,9 @@ public class AvatarAgent {
         }
         ResponseStream created = newResponse(requestId);
         existing = activeResponses.putIfAbsent(requestId, created);
-        return existing != null ? existing : created;
+        if (existing != null) return existing;
+        registerLifecycle(created.getResponseId(), created.lifecycle());
+        return created;
     }
 
     private ResponseStream newResponse(String requestId) {
@@ -299,13 +331,69 @@ public class AvatarAgent {
             throw new IllegalArgumentException("requestId is required");
         }
         AtomicReference<ResponseStream> created = new AtomicReference<>();
+        ResponseLifecycle lifecycle = new ResponseLifecycle(requestId,
+                "res_" + responseSequence.incrementAndGet());
         ResponseStream stream = new ResponseStream(
                 requestId,
-                "res_" + responseSequence.incrementAndGet(),
+                lifecycle.getResponseId(),
                 message -> requireStarted().wsClient.sendMessage(message),
-                () -> activeResponses.remove(requestId, created.get()));
+                () -> activeResponses.remove(requestId, created.get()),
+                lifecycle);
         created.set(stream);
         return stream;
+    }
+
+    private void registerLifecycle(String responseId, ResponseLifecycle lifecycle) {
+        String sessionId = requireStarted().sessionInfo.getSessionId();
+        ResponseLifecycle existing = pendingResponses.putIfAbsent(
+                lifecycleKey(sessionId, responseId), lifecycle);
+        if (existing != null) {
+            throw new IllegalStateException("An active response already exists for responseId " + responseId);
+        }
+    }
+
+    void handleResponseState(ResponseStateEvent event) {
+        if (event.getSessionId() == null || event.getRequestId() == null
+                || event.getResponseId() == null) {
+            listener.onResponseState(event);
+            return;
+        }
+        ResponseLifecycle lifecycle = null;
+        boolean completeTerminal = false;
+        boolean deliver;
+        synchronized (lifecycleLock) {
+            Long previous = latestLifecycleSeq.get(event.getSessionId());
+            deliver = previous == null || event.getSeq() > previous;
+            if (deliver) {
+                latestLifecycleSeq.put(event.getSessionId(), event.getSeq());
+                lifecycle = pendingResponses.get(
+                        lifecycleKey(event.getSessionId(), event.getResponseId()));
+                if (lifecycle != null && lifecycle.getRequestId().equals(event.getRequestId())) {
+                    completeTerminal = lifecycle.record(event);
+                } else {
+                    lifecycle = null;
+                }
+            }
+        }
+        if (!deliver) return;
+        if (completeTerminal) lifecycle.completeTerminal(event);
+        listener.onResponseState(event);
+    }
+
+    private static String lifecycleKey(String sessionId, String responseId) {
+        return sessionId + '\u0000' + responseId;
+    }
+
+    private void clearLifecycleTracking() {
+        java.util.List<ResponseLifecycle> lifecycles;
+        synchronized (lifecycleLock) {
+            lifecycles = new java.util.ArrayList<>(pendingResponses.values());
+            pendingResponses.clear();
+            latestLifecycleSeq.clear();
+        }
+        activeResponses.clear();
+        IllegalStateException stopped = new IllegalStateException("Avatar agent stopped");
+        for (ResponseLifecycle lifecycle : lifecycles) lifecycle.fail(stopped);
     }
 
     private String buildStartRequest() {
@@ -404,11 +492,12 @@ public class AvatarAgent {
     // ── Listener wrapper ─────────────────────────────────────────────────────
 
     private static class LatchedListener implements AgentListener {
+        private final AvatarAgent owner;
         private final AgentListener delegate;
         private final CountDownLatch latch;
 
-        LatchedListener(AgentListener delegate, CountDownLatch latch) {
-            this.delegate = delegate; this.latch = latch;
+        LatchedListener(AvatarAgent owner, AgentListener delegate, CountDownLatch latch) {
+            this.owner = owner; this.delegate = delegate; this.latch = latch;
         }
 
         @Override public void onTextInput(String text, String requestId) { delegate.onTextInput(text, requestId); }
@@ -416,6 +505,7 @@ public class AvatarAgent {
         @Override public void onSessionInit() { latch.countDown(); delegate.onSessionInit(); }
         @Override public void onSceneReady() { delegate.onSceneReady(); }
         @Override public void onSessionState(SessionState state) { delegate.onSessionState(state); }
+        @Override public void onResponseState(ResponseStateEvent event) { owner.handleResponseState(event); }
         @Override public void onResourceTransition(ResourceTransitionData data) { delegate.onResourceTransition(data); }
         @Override public void onIdleTrigger(String reason, long idleMs) { delegate.onIdleTrigger(reason, idleMs); }
         @Override public void onError(String message) { delegate.onError(message); }

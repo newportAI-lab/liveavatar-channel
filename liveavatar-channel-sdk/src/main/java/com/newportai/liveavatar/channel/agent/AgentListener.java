@@ -2,6 +2,7 @@ package com.newportai.liveavatar.channel.agent;
 
 import com.newportai.liveavatar.channel.model.AudioFrame;
 import com.newportai.liveavatar.channel.model.ResourceTransitionData;
+import com.newportai.liveavatar.channel.model.ResponseStateEvent;
 import com.newportai.liveavatar.channel.model.SessionState;
 
 /**
@@ -64,6 +65,9 @@ public interface AgentListener {
      * @param state the new session state (IDLE, LISTENING, THINKING, SPEAKING, etc.)
      */
     default void onSessionState(SessionState state) {}
+
+    /** Called for each non-duplicate response lifecycle event published by the platform. */
+    default void onResponseState(ResponseStateEvent event) {}
 
     /**
      * Called when the renderer reports a video resource transition.
