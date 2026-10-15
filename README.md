@@ -63,7 +63,7 @@ SessionInfo info = agent.start();
 <dependency>
     <groupId>io.github.newportai-lab</groupId>
     <artifactId>liveavatar-channel-sdk</artifactId>
-    <version>1.3.0</version>
+    <version>1.3.1</version>
 </dependency>
 ```
 
@@ -97,13 +97,44 @@ AvatarWebSocketClient (OkHttp3 transport, auto-handshake)
 | `sendVoiceFinish(reqId)` | Notify platform user stopped speaking (Developer ASR) |
 | `sendAsrPartial(reqId, seq, text)` | Stream partial ASR result |
 | `sendAsrFinal(reqId, text)` | Send final ASR result |
-| `sendInterrupt()` | Interrupt current avatar speech |
+| `sendInterrupt()` | Stop voice playback. See External audio below |
+| `sendInterrupt(InterruptScope)` | Stop voice, clear external audio, or both |
+| `sendExternalAudio(pcm)` | Send external PCM. It does not drive lip sync |
 | `sendPrompt(text)` | Send idle-wake prompt text |
 | `beginPrompt(reqId[, responseId])` | Begin a lifecycle-aware `PromptStream` |
 | `PromptStream.sendChunk(text)` / `done()` | Stream prompt text; `done()` ends input only |
 | `sendPromptAudioStart()` / `sendPromptAudioFinish()` | Idle-wake audio (Developer TTS) |
 | `sendCustomEvent(reqId, event, data)` | Send an application-specific event |
 | `isConnected()` / `getSessionInfo()` | State queries |
+
+### External audio
+
+External audio is mixed for playback and does not drive lip sync. Do not send it through `response.audio.*` or `sendAudioFrame`.
+
+`AvatarAgentConfig` adds the optional parameter `externalAudioConfig`.
+
+| Field | Values |
+|---|---|
+| `sampleRate` | `0` or omitted follows the session voice format. Otherwise 16000, 24000, 44100, or 48000 |
+| `channels` | `0` or omitted follows the session voice format. Otherwise 1 or 2 |
+
+The SDK rejects any other value. On session start this parameter is sent as `externalAudioConfig`.
+
+`sendExternalAudio(byte[] pcm, long timestampUs)` is a new method. `pcm` is 16-bit little-endian PCM. `timestampUs` of `0` lets the platform choose the presentation time. This audio does not drive lip sync. Do not send it with `response.audio.*` or `sendAudioFrame`.
+
+The sample rate and channel count must match `externalAudioConfig` when that parameter is set. When it is not set, they must match the TTS audio format used for this session.
+
+One binary frame, including its header, must not exceed 65536 bytes. A larger frame closes the WebSocket. Send each later packet before the audio already queued has finished playing. For example, do not wait a full 200 ms before sending the next 200 ms packet. Make the first packet longer than the later packets, while still staying under the 65536-byte limit, so playback has audio waiting when it starts.
+
+`sendInterrupt` adds the parameter `InterruptScope scope`.
+
+| Value | Effect |
+|---|---|
+| `null` or `VOICE_ONLY` | Stop voice playback. External audio continues |
+| `BGM_ONLY` | Clear queued external audio. Voice playback continues |
+| `VOICE_AND_ACCOMPANIMENT` | Stop voice playback and clear queued external audio |
+
+`sendInterrupt()` with no argument uses `VOICE_ONLY`. The value is sent as `data.interruptScope` on the event `control.interrupt`. Audio that belongs to the base video is not cleared. External audio sent after the interrupt still plays.
 
 ### AgentListener
 

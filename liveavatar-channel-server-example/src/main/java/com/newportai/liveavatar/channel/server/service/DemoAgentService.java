@@ -138,4 +138,75 @@ public class DemoAgentService implements AgentListener {
     public void onClosed(int code, String reason) {
         logger.info("Connection closed: code={}, reason={}", code, reason);
     }
+
+    /*
+     * Call examples. Nothing in this comment runs.
+     *
+     * AvatarAgentConfig.Builder: apiKey, avatarId, baseUrl, sandbox, developerAsr,
+     * developerTts, reconnectEnabled, voiceId, userId, rtcProvider, voiceConfig.
+     * externalAudioConfig is optional. sampleRate 0 follows the session voice format;
+     * otherwise use 16000, 24000, 44100, or 48000. channels 0 follows voice; otherwise 1 or 2.
+     * The PCM passed to sendExternalAudio must use that same rate and channel count.
+     * If externalAudioConfig is omitted, match the session TTS audio format instead.
+     *
+     * AvatarAgent agent = AvatarAgent.builder()
+     *     .config(AvatarAgentConfig.builder()
+     *         .apiKey(apiKey).avatarId(avatarId).baseUrl(baseUrl)
+     *         .externalAudioConfig(ExternalAudioConfig.builder().sampleRate(48000).channels(2).build())
+     *         .build())
+     *     .listener(this).build();
+     * SessionInfo info = agent.start();
+     * agent.isConnected();
+     * agent.getSessionInfo();
+     *
+     * ResponseStream response = agent.beginResponse(requestId);
+     * response.start(audioConfig); // platform TTS settings before the first chunk
+     * response.sendChunk("Hello");
+     * response.done();
+     * response.cancel();
+     * // Deprecated. Prefer beginResponse:
+     * agent.sendResponseStart(requestId, audioConfig);
+     * agent.sendResponseChunk(requestId, "Hello", 1);
+     * agent.sendResponseDone(requestId);
+     * agent.sendResponseCancel(responseId);
+     *
+     * agent.sendResponseAudioStart(requestId, responseId);
+     * agent.sendAudioFrame(frame); // 9-byte voice frame. This drives lip sync.
+     * agent.sendResponseAudioFinish(requestId, responseId);
+     * agent.sendPromptAudioStart();
+     * agent.sendPromptAudioFinish();
+     *
+     * agent.sendVoiceStart(requestId);
+     * agent.sendAsrPartial(requestId, 1, "partial text");
+     * agent.sendVoiceFinish(requestId);
+     * agent.sendAsrFinal(requestId, "final text");
+     *
+     * agent.sendPrompt("Are you still there?");
+     * PromptStream prompt = agent.beginPrompt(requestId);
+     * prompt.sendChunk("Hello");
+     * prompt.done();
+     * PromptStream named = agent.beginPrompt(requestId, responseId);
+     *
+     * byte[] pcm = new byte[38400]; // 200 ms, 48000 Hz, stereo, 16-bit
+     * agent.sendExternalAudio(pcm); // timestamp 0 lets the platform choose the time
+     * agent.sendExternalAudio(pcm, 0L);
+     * // One frame including its header must stay within 65536 bytes.
+     * // Send the next packet before the previous audio finishes playing.
+     * // The first packet may be longer than later packets, but not over that limit.
+     *
+     * agent.sendInterrupt(); // same as VOICE_ONLY
+     * agent.sendInterrupt(InterruptScope.VOICE_ONLY); // stop voice only
+     * agent.sendInterrupt(InterruptScope.BGM_ONLY); // clear queued external audio only
+     * agent.sendInterrupt(InterruptScope.VOICE_AND_ACCOMPANIMENT); // stop both
+     *
+     * agent.sendCustomEvent(requestId, "scene.switchVideo", Map.of(
+     *     "onceVideos", java.util.List.of("fist_bump"), // resourceId or alias
+     *     "loopVideos", java.util.List.of("01KTJNMD7NZJF4KMGCCFSTJN4X")));
+     *
+     * agent.stop();
+     *
+     * Listener methods you can override: onTextInput, onAudioFrame, onSessionInit,
+     * onSceneReady, onSessionState, onResponseState, onResourceTransition,
+     * onIdleTrigger, onSessionClosing, onError, onClosed.
+     */
 }

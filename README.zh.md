@@ -63,7 +63,7 @@ SessionInfo info = agent.start();
 <dependency>
     <groupId>io.github.newportai-lab</groupId>
     <artifactId>liveavatar-channel-sdk</artifactId>
-    <version>1.3.0</version>
+    <version>1.3.1</version>
 </dependency>
 ```
 
@@ -97,13 +97,44 @@ AvatarWebSocketClient（OkHttp3 传输层，自动握手）
 | `sendVoiceFinish(reqId)` | 通知平台用户停止说话（开发者 ASR） |
 | `sendAsrPartial(reqId, seq, text)` | 流式 ASR 中间结果 |
 | `sendAsrFinal(reqId, text)` | ASR 最终结果 |
-| `sendInterrupt()` | 打断当前数字人播报 |
+| `sendInterrupt()` | 停止语音播放。范围见下方「外部音频」 |
+| `sendInterrupt(InterruptScope)` | 停止语音、清除外部音频，或两者都做 |
+| `sendExternalAudio(pcm)` | 发送外部 PCM。不驱动口型 |
 | `sendPrompt(text)` | 发送冷场唤醒文本 |
 | `beginPrompt(reqId[, responseId])` | 创建可观察生命周期的 `PromptStream` |
 | `PromptStream.sendChunk(text)` / `done()` | 流式发送 prompt；`done()` 仅结束文本输入 |
 | `sendPromptAudioStart()` / `sendPromptAudioFinish()` | 冷场唤醒音频（开发者 TTS） |
 | `sendCustomEvent(reqId, event, data)` | 发送自定义事件 |
 | `isConnected()` / `getSessionInfo()` | 状态查询 |
+
+### 外部音频
+
+外部音频只参与播放，不驱动口型。不要通过 `response.audio.*` 或 `sendAudioFrame` 发送。
+
+`AvatarAgentConfig` 新增可选参数 `externalAudioConfig`。
+
+| 字段 | 取值 |
+|---|---|
+| `sampleRate` | `0` 或不填表示跟随本次语音格式。其他值只能是 16000、24000、44100 或 48000 |
+| `channels` | `0` 或不填表示跟随本次语音格式。其他值为 1 或 2 |
+
+SDK 拒绝其余取值。开播时这个参数以 `externalAudioConfig` 发送。
+
+`sendExternalAudio(byte[] pcm, long timestampUs)` 是新增方法。`pcm` 为 16 位小端 PCM。`timestampUs` 为 `0` 时由平台填写呈现时间。这段音频不驱动口型。不要用 `response.audio.*` 或 `sendAudioFrame` 发送。
+
+采样率和声道必须与 `externalAudioConfig` 一致。未设置该参数时，必须与本次会话的 TTS 音频格式一致。
+
+单个二进制帧含协议头后不得超过 65536 字节，超过后 WebSocket 会被关闭。后续每个包都要在已发送音频播放完之前送到。例如一包含 200 毫秒音频时，不要等满 200 毫秒再发下一包。第一包可以比后面的包更长，用来先准备一段可播放的音频，但仍然不能超过 65536 字节。
+
+`sendInterrupt` 新增参数 `InterruptScope scope`。
+
+| 取值 | 效果 |
+|---|---|
+| `null` 或 `VOICE_ONLY` | 只停止语音播放。外部音频继续播放 |
+| `BGM_ONLY` | 只清除尚未播放的外部音频。语音继续播放 |
+| `VOICE_AND_ACCOMPANIMENT` | 停止语音播放，并清除尚未播放的外部音频 |
+
+不带参数的 `sendInterrupt()` 等同于 `VOICE_ONLY`。该参数的值写入事件 `control.interrupt` 的 `data.interruptScope`。底板视频中的音频不会被清除。打断之后新发送的外部音频仍会播放。
 
 ### AgentListener
 
