@@ -164,6 +164,12 @@ public class AvatarWebSocketClient {
         logger.debug("Sent: {}", json);
     }
 
+    public void sendBinary(byte[] bytes) throws ConnectionException {
+        if (!connected || webSocket == null) throw new ConnectionException("Not connected");
+        if (bytes == null || bytes.length == 0) throw new IllegalArgumentException("bytes required");
+        if (!webSocket.send(ByteString.of(bytes))) throw new ConnectionException("Failed to send binary frame");
+    }
+
     public void sendAudioFrame(AudioFrame frame) throws ConnectionException {
         if (!connected || webSocket == null) throw new ConnectionException("Not connected");
         byte[] bytes = frame.encode();

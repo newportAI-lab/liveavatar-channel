@@ -6,6 +6,7 @@ import com.newportai.liveavatar.channel.exception.AvatarChannelException;
 import com.newportai.liveavatar.channel.exception.ConnectionException;
 import com.newportai.liveavatar.channel.exception.MessageSerializationException;
 import com.newportai.liveavatar.channel.model.*;
+import com.newportai.liveavatar.channel.util.ExternalAudioFrames;
 import com.newportai.liveavatar.channel.util.MessageBuilder;
 import okhttp3.MediaType;
 import okhttp3.OkHttpClient;
@@ -68,6 +69,7 @@ public class AvatarAgent {
     private final Map<String, Long> latestLifecycleSeq = new java.util.HashMap<>();
     private final Object lifecycleLock = new Object();
     private final AtomicLong responseSequence = new AtomicLong();
+    private final AtomicLong externalAudioSequence = new AtomicLong();
 
     private AvatarAgent(AvatarAgentConfig config, AgentListener listener, OkHttpClient httpClient) {
         this.config = config;
@@ -248,7 +250,28 @@ public class AvatarAgent {
     // ── Send: Control ──────────────────────────────────────────────────────────
 
     public void sendInterrupt() throws ConnectionException, MessageSerializationException {
-        requireStarted().wsClient.sendMessage(MessageBuilder.controlInterrupt());
+        sendInterrupt(null);
+    }
+
+    public void sendInterrupt(InterruptScope scope) throws ConnectionException, MessageSerializationException {
+        requireStarted().wsClient.sendMessage(MessageBuilder.controlInterrupt(scope));
+    }
+
+    public void sendExternalAudio(byte[] pcm) throws ConnectionException {
+        sendExternalAudio(pcm, 0L);
+    }
+
+    public void sendExternalAudio(byte[] pcm, long timestampUs) throws ConnectionException {
+        int channels = 1;
+        ExternalAudioConfig external = config.getExternalAudioConfig();
+        if (external != null && external.getChannels() != null && external.getChannels() > 0) {
+            channels = Math.min(external.getChannels(), 2);
+        }
+        if (pcm == null || pcm.length == 0 || pcm.length % (channels * 2) != 0) {
+            throw new IllegalArgumentException("pcm must be non-empty aligned S16LE bytes");
+        }
+        long sequence = externalAudioSequence.incrementAndGet();
+        requireStarted().wsClient.sendBinary(ExternalAudioFrames.encode(sequence, timestampUs, pcm));
     }
     public void sendPrompt(String text) throws ConnectionException, MessageSerializationException {
         requireStarted().wsClient.sendMessage(MessageBuilder.systemPrompt(text));
@@ -414,6 +437,20 @@ public class AvatarAgent {
             first = appendJsonNumber(sb, "similarityBoost", voiceConfig.getSimilarityBoost(), first);
             first = appendJsonNumber(sb, "style", voiceConfig.getStyle(), first);
             appendJsonNumber(sb, "pitch", voiceConfig.getPitch(), first);
+            sb.append('}');
+        }
+        ExternalAudioConfig external = config.getExternalAudioConfig();
+        if (external != null) {
+            sb.append(",\"externalAudioConfig\":{");
+            boolean firstExternal = true;
+            if (external.getSampleRate() != null) {
+                sb.append("\"sampleRate\":").append(external.getSampleRate());
+                firstExternal = false;
+            }
+            if (external.getChannels() != null) {
+                if (!firstExternal) sb.append(',');
+                sb.append("\"channels\":").append(external.getChannels());
+            }
             sb.append('}');
         }
         sb.append('}');

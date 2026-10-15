@@ -26,6 +26,7 @@ public final class AvatarAgentConfig {
     private final String userId;    // nullable
     private final String rtcProvider; // nullable
     private final VoiceConfig voiceConfig; // nullable
+    private final ExternalAudioConfig externalAudioConfig; // nullable
 
     private AvatarAgentConfig(Builder builder) {
         this.apiKey = builder.apiKey;
@@ -39,6 +40,7 @@ public final class AvatarAgentConfig {
         this.userId = builder.userId;
         this.rtcProvider = builder.rtcProvider;
         this.voiceConfig = builder.voiceConfig;
+        this.externalAudioConfig = builder.externalAudioConfig;
     }
 
     public static Builder builder() { return new Builder(); }
@@ -56,6 +58,7 @@ public final class AvatarAgentConfig {
     public String getUserId() { return userId; }     // nullable
     public String getRtcProvider() { return rtcProvider; } // nullable
     public VoiceConfig getVoiceConfig() { return voiceConfig; } // nullable
+    public ExternalAudioConfig getExternalAudioConfig() { return externalAudioConfig; }
 
     // ── Builder ──
 
@@ -71,6 +74,7 @@ public final class AvatarAgentConfig {
         private String userId;    // nullable
         private String rtcProvider; // nullable
         private VoiceConfig voiceConfig; // nullable
+        private ExternalAudioConfig externalAudioConfig;
 
         /** API Key from the console (required). */
         public Builder apiKey(String apiKey) { this.apiKey = apiKey; return this; }
@@ -104,6 +108,12 @@ public final class AvatarAgentConfig {
 
         /** Optional voice runtime configuration. */
         public Builder voiceConfig(VoiceConfig voiceConfig) { this.voiceConfig = voiceConfig; return this; }
+
+        /** Optional external audio format. Omitted means follow the voice format. */
+        public Builder externalAudioConfig(ExternalAudioConfig externalAudioConfig) {
+            this.externalAudioConfig = externalAudioConfig;
+            return this;
+        }
 
         /**
          * Builds the config.

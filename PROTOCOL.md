@@ -374,9 +374,20 @@ chunks still share one response ID.
 ```json
 {
   "event": "control.interrupt",
-  "requestId": "req_2"
+  "requestId": "req_2",
+  "data": {
+    "interruptScope": "VOICE_AND_ACCOMPANIMENT"
+  }
 }
 ```
+
+`interruptScope` can be omitted.
+
+- Omit it, leave it empty, or send `VOICE_ONLY`: stop the voice only. External audio keeps playing.
+- `BGM_ONLY`: clear queued external audio only. The voice keeps playing.
+- `VOICE_AND_ACCOMPANIMENT`: stop the voice and clear queued external audio.
+
+Audio that belongs to the base video is never cleared. New external audio can still be sent after the interrupt.
 
 A signal for **explicit programmatic interruption**, initiated by the Developer Service in scenarios not triggered by any user input event (e.g., backend timeout, business-logic override).
 

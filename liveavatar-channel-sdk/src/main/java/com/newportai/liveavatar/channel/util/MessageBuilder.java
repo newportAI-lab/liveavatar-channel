@@ -131,6 +131,17 @@ public class MessageBuilder {
         return new Message(EventType.CONTROL_INTERRUPT);
     }
 
+    public static Message controlInterrupt(com.newportai.liveavatar.channel.agent.InterruptScope scope) {
+        Message message = controlInterrupt();
+        if (scope == com.newportai.liveavatar.channel.agent.InterruptScope.VOICE_AND_ACCOMPANIMENT
+                || scope == com.newportai.liveavatar.channel.agent.InterruptScope.BGM_ONLY) {
+            java.util.Map<String, Object> data = new java.util.HashMap<>();
+            data.put("interruptScope", scope.name());
+            message.setData(data);
+        }
+        return message;
+    }
+
     /**
      * Create system.prompt message
      */
