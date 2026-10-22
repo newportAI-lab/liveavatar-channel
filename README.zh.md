@@ -63,7 +63,7 @@ SessionInfo info = agent.start();
 <dependency>
     <groupId>io.github.newportai-lab</groupId>
     <artifactId>liveavatar-channel-sdk</artifactId>
-    <version>1.3.1</version>
+    <version>1.3.2</version>
 </dependency>
 ```
 
@@ -99,7 +99,8 @@ AvatarWebSocketClient（OkHttp3 传输层，自动握手）
 | `sendAsrFinal(reqId, text)` | ASR 最终结果 |
 | `sendInterrupt()` | 停止语音播放。范围见下方「外部音频」 |
 | `sendInterrupt(InterruptScope)` | 停止语音、清除外部音频，或两者都做 |
-| `sendExternalAudio(pcm)` | 发送外部 PCM。不驱动口型 |
+| `sendExternalAudio(pcm)` | 发送伴奏 PCM。不驱动口型 |
+| `sendExternalPlayback(reqId, resId, frames)` | 平台 TTS 会话中把开发者 PCM 当人声轮播放。事件带 `purpose=external` |
 | `sendPrompt(text)` | 发送冷场唤醒文本 |
 | `beginPrompt(reqId[, responseId])` | 创建可观察生命周期的 `PromptStream` |
 | `PromptStream.sendChunk(text)` / `done()` | 流式发送 prompt；`done()` 仅结束文本输入 |

@@ -63,7 +63,7 @@ SessionInfo info = agent.start();
 <dependency>
     <groupId>io.github.newportai-lab</groupId>
     <artifactId>liveavatar-channel-sdk</artifactId>
-    <version>1.3.1</version>
+    <version>1.3.2</version>
 </dependency>
 ```
 
@@ -99,7 +99,8 @@ AvatarWebSocketClient (OkHttp3 transport, auto-handshake)
 | `sendAsrFinal(reqId, text)` | Send final ASR result |
 | `sendInterrupt()` | Stop voice playback. See External audio below |
 | `sendInterrupt(InterruptScope)` | Stop voice, clear external audio, or both |
-| `sendExternalAudio(pcm)` | Send external PCM. It does not drive lip sync |
+| `sendExternalAudio(pcm)` | Send accompaniment PCM. It does not drive lip sync |
+| `sendExternalPlayback(reqId, resId, frames)` | Play developer PCM as the voice turn during platform TTS. Sends `purpose=external` |
 | `sendPrompt(text)` | Send idle-wake prompt text |
 | `beginPrompt(reqId[, responseId])` | Begin a lifecycle-aware `PromptStream` |
 | `PromptStream.sendChunk(text)` / `done()` | Stream prompt text; `done()` ends input only |

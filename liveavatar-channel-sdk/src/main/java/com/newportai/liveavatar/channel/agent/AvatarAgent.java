@@ -225,6 +225,24 @@ public class AvatarAgent {
         s.wsClient.sendMessage(MessageBuilder.responseAudioFinish(requestId, responseId));
     }
 
+    /**
+     * 平台 TTS 会话中的外部 PCM 轮。不改 PCM 字节，只声明 purpose=external。
+     */
+    public void sendExternalPlayback(String requestId, String responseId, Iterable<AudioFrame> frames)
+            throws ConnectionException, MessageSerializationException {
+        java.util.Map<String, String> marker = new java.util.HashMap<String, String>();
+        marker.put("purpose", "external");
+        State s = requireStarted();
+        s.wsClient.sendMessage(MessageBuilder.responseAudioStart(requestId, responseId, marker));
+        try {
+            for (AudioFrame frame : frames) {
+                s.wsClient.sendAudioFrame(frame);
+            }
+        } finally {
+            s.wsClient.sendMessage(MessageBuilder.responseAudioFinish(requestId, responseId, marker));
+        }
+    }
+
     public void sendPromptAudioStart() throws ConnectionException, MessageSerializationException {
         requireStarted().wsClient.sendMessage(MessageBuilder.responseAudioPromptStart());
     }

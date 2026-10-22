@@ -190,6 +190,12 @@ public class DemoAgentService implements AgentListener {
      * byte[] pcm = new byte[38400]; // 200 ms, 48000 Hz, stereo, 16-bit
      * agent.sendExternalAudio(pcm); // timestamp 0 lets the platform choose the time
      * agent.sendExternalAudio(pcm, 0L);
+     * // Platform TTS song. This is the voice turn, not accompaniment.
+     * // songPcm is 24000 Hz, mono, 16-bit. The SDK does not resample.
+     * // AudioFrame song = AudioFrameBuilder.create().mono()
+     * //     .sampleRate(AudioHeader.SampleRate.RATE_24KHZ).payload(songPcm).build();
+     * // agent.sendExternalPlayback(requestId, responseId, java.util.List.of(song));
+     * // Sends response.audio.start and response.audio.finish with data.purpose=external.
      * // One frame including its header must stay within 65536 bytes.
      * // Send the next packet before the previous audio finishes playing.
      * // The first packet may be longer than later packets, but not over that limit.
