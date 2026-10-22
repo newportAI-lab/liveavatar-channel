@@ -217,9 +217,16 @@ public class MessageBuilder {
      * Create response.audio.start message
      */
     public static Message responseAudioStart(String requestId, String responseId) {
+        return responseAudioStart(requestId, responseId, null);
+    }
+
+    public static Message responseAudioStart(String requestId, String responseId, Object data) {
         Message message = new Message(EventType.RESPONSE_AUDIO_START);
         message.setRequestId(requestId);
         message.setResponseId(responseId);
+        if (data != null) {
+            message.setData(data);
+        }
         return message;
     }
 
@@ -227,9 +234,16 @@ public class MessageBuilder {
      * Create response.audio.finish message
      */
     public static Message responseAudioFinish(String requestId, String responseId) {
+        return responseAudioFinish(requestId, responseId, null);
+    }
+
+    public static Message responseAudioFinish(String requestId, String responseId, Object data) {
         Message message = new Message(EventType.RESPONSE_AUDIO_FINISH);
         message.setRequestId(requestId);
         message.setResponseId(responseId);
+        if (data != null) {
+            message.setData(data);
+        }
         return message;
     }
 

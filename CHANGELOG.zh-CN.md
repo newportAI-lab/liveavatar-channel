@@ -2,6 +2,10 @@
 
 本文件记录本 SDK 的主要变化。日期为发布日期。
 
+## [1.3.2] - 2026-10-22
+
+1. Added: `sendExternalPlayback(requestId, responseId, frames)` 在平台 TTS 会话中把开发者 PCM 当人声轮播放。它发送 `response.audio.start` 和 `response.audio.finish`，`data.purpose` 为 `external`，随后发送现有二进制音频帧。SDK 不重采样。这不是 `sendExternalAudio`；后者仍是伴奏，不会替换口播。start 之后如果某一帧发送失败，仍会发送 `response.audio.finish`。平台 Dispatcher 必须已经接受 `purpose=external`。
+
 ## [1.3.1] - 2026-10-15
 
 1. Added: `AvatarAgentConfig` 新增可选参数 `externalAudioConfig`。`sampleRate`：`0` 或不填表示跟随本次语音格式，其他值只能是 16000、24000、44100 或 48000。`channels`：`0` 或不填表示跟随本次语音格式，其他值为 1 或 2。其余取值会被拒绝。开播时以 `externalAudioConfig` 发送。
