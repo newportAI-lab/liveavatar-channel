@@ -25,6 +25,7 @@ replay_pid*
 
 # macOS Finder files
 .DS_Store
+/.env
 
 /.claude/
 /.idea/

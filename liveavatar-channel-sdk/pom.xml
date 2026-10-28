@@ -120,6 +120,7 @@
                 <version>3.1.0</version>
                 <configuration>
                     <skip>${gpg.skip}</skip>
+                    <passphrase>${env.GPG_PASSPHRASE}</passphrase>
                 </configuration>
                 <executions>
                     <execution>
@@ -136,7 +137,6 @@
                 <extensions>true</extensions>
                 <configuration>
                     <publishingServerId>central</publishingServerId>
-                    <tokenAuth>true</tokenAuth>
                 </configuration>
             </plugin>
         </plugins>

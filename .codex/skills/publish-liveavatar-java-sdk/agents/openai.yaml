@@ -1,0 +1,4 @@
+interface:
+  display_name: "Publish LiveAvatar Java SDK"
+  short_description: "Safely stage and verify the Java SDK release"
+  default_prompt: "Prepare, deploy, and verify a LiveAvatar Channel Java SDK release without exposing credentials or bypassing the manual Central Portal publish step."
