@@ -207,7 +207,8 @@ public class DemoAgentService implements AgentListener {
      *
      * agent.sendCustomEvent(requestId, "scene.switchVideo", Map.of(
      *     "onceVideos", java.util.List.of("fist_bump"), // resourceId or alias
-     *     "loopVideos", java.util.List.of("01KTJNMD7NZJF4KMGCCFSTJN4X")));
+     *     "loopVideos", java.util.List.of("01KTJNMD7NZJF4KMGCCFSTJN4X"),
+     *     "mode", "HARD")); // HARD immediate, GRACEFUL wait (default)
      *
      * agent.stop();
      *

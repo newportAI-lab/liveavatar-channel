@@ -105,7 +105,7 @@ AvatarWebSocketClient（OkHttp3 传输层，自动握手）
 | `beginPrompt(reqId[, responseId])` | 创建可观察生命周期的 `PromptStream` |
 | `PromptStream.sendChunk(text)` / `done()` | 流式发送 prompt；`done()` 仅结束文本输入 |
 | `sendPromptAudioStart()` / `sendPromptAudioFinish()` | 冷场唤醒音频（开发者 TTS） |
-| `sendCustomEvent(reqId, event, data)` | 发送自定义事件 |
+| `sendCustomEvent(reqId, event, data)` | 发送自定义事件，包括 `scene.switchVideo`。见 [切视频](#切视频) |
 | `isConnected()` / `getSessionInfo()` | 状态查询 |
 
 ### 外部音频
@@ -285,9 +285,38 @@ public void onTextInput(String text, String requestId) {
 mvn clean install -DskipTests -Dgpg.skip=true
 ```
 
+## 切视频
+
+没有 `switchVideo()`。`start()` 成功后，建议等到 `onSceneReady()`，再用 `sendCustomEvent` 发送 `scene.switchVideo`。`onceVideos`、`loopVideos`、`videoChoreographyGroups` 至少一个非空。方法在消息写出后即返回，画面是否切过去看 `onResourceTransition`。切视频不会让数字人开口。
+
+```java
+Map<String, Object> data = new HashMap<String, Object>();
+// resourceId 或 alias
+data.put("onceVideos", Arrays.asList("fist_bump")); 
+data.put("loopVideos", Arrays.asList("01KTJNMD7NZJF4KMGCCFSTJN4X"));
+// HARD 硬切，GRACEFUL 软切（默认）
+data.put("mode", "HARD"); 
+agent.sendCustomEvent(null, "scene.switchVideo", data);
+```
+
+| 字段 | 含义 |
+|---|---|
+| `onceVideos` | 按顺序各播一次，然后进入循环内容 |
+| `loopVideos` | `onceVideos` 之后循环。编排分组非空时忽略 |
+| `videoChoreographyGroups` | 分组抽片，每组随机一条 |
+| `mode` | `GRACEFUL`（软切，默认）、`HARD`（硬切）。无法识别时按 `GRACEFUL` |
+
+每项可以是 resourceId，或底板 alias（3–32 位，字母开头，小写字母数字下划线，不能以下划线结尾）。SDK 原样传递。字段名必须是 camelCase。alias 需要 1.3.1 或更高。
+
+`DemoAgentService` 里这段调用是注释，默认不执行。
+
 ## 协议
 
 完整 WebSocket 协议定义见 [PROTOCOL.zh.md](./PROTOCOL.zh.md)。
+
+## 更新记录
+
+[CHANGELOG.zh-CN.md](./CHANGELOG.zh-CN.md) 
 
 ## License
 

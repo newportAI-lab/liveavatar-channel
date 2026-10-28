@@ -105,7 +105,7 @@ AvatarWebSocketClient (OkHttp3 transport, auto-handshake)
 | `beginPrompt(reqId[, responseId])` | Begin a lifecycle-aware `PromptStream` |
 | `PromptStream.sendChunk(text)` / `done()` | Stream prompt text; `done()` ends input only |
 | `sendPromptAudioStart()` / `sendPromptAudioFinish()` | Idle-wake audio (Developer TTS) |
-| `sendCustomEvent(reqId, event, data)` | Send an application-specific event |
+| `sendCustomEvent(reqId, event, data)` | Send an application-specific event, including `scene.switchVideo`. See [Switch video](#switch-video) |
 | `isConnected()` / `getSessionInfo()` | State queries |
 
 ### External audio
@@ -288,9 +288,36 @@ public void onTextInput(String text, String requestId) {
 mvn clean install -DskipTests -Dgpg.skip=true
 ```
 
+## Switch video
+
+There is no `switchVideo()` method. After `start()` and preferably after `onSceneReady()`, send `scene.switchVideo` with `sendCustomEvent`. At least one of `onceVideos`, `loopVideos`, `videoChoreographyGroups` must be non-empty. The call returns after the event is written; watch `onResourceTransition` for the actual cut. Switching video does not make the avatar speak.
+
+```java
+Map<String, Object> data = new HashMap<String, Object>();
+data.put("onceVideos", Arrays.asList("fist_bump")); // resourceId or alias
+data.put("loopVideos", Arrays.asList("01KTJNMD7NZJF4KMGCCFSTJN4X"));
+data.put("mode", "HARD"); // HARD immediate, GRACEFUL wait (default)
+agent.sendCustomEvent(null, "scene.switchVideo", data);
+```
+
+| Field | Meaning |
+|---|---|
+| `onceVideos` | Play each item once, then enter loop content |
+| `loopVideos` | Loop after `onceVideos`. Ignored when `videoChoreographyGroups` is non-empty |
+| `videoChoreographyGroups` | Groups of clips; each round picks one item at random from each group |
+| `mode` | `GRACEFUL` (soft cut, default), `HARD` (hard cut). Unknown values become `GRACEFUL`  |
+
+Each item may be a resource ID or a base-video alias (3–32 chars, starts with a letter, lowercase letters/digits/underscore, not ending with `_`). The SDK sends the string as-is. The platform replaces a matching alias with its resource ID. Field names must be camelCase. Alias support needs SDK 1.3.1 or later.
+
+The example in `DemoAgentService` keeps this call commented and does not run it by default.
+
 ## Protocol
 
 See [PROTOCOL.md](./PROTOCOL.md) for the full WebSocket protocol definition.
+
+## Changelog
+
+[CHANGELOG.md](./CHANGELOG.md)
 
 ## License
 
