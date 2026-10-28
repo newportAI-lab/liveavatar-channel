@@ -55,6 +55,7 @@
 | prompt      | system.prompt      |
 | idleTrigger | system.idleTrigger |
 | resourceTransition | scene.resourceTransition |
+| switchVideo | scene.switchVideo |
 
 ---
 
@@ -212,6 +213,16 @@ SDK 会把该事件分发到 `AgentListener.onResourceTransition(data)`。
 SDK 类型数据中没有 `streamId`。当前 WebSocket 会话已经限定了 stream 范围。如果任一
 必填资源 ID 缺失或为空，SDK 会把 payload 视为格式错误，并且不会触发
 `onResourceTransition`。
+
+#### Server（开发者服务）→ Client（数字人服务）— scene.switchVideo
+
+用自定义事件更换正在播放的视频。没有 typed SDK 方法，调用
+`AvatarAgent.sendCustomEvent`。字段名必须是 camelCase。`onceVideos`、
+`loopVideos`、`videoChoreographyGroups` 的每一项可以是 resourceId 或底板 alias。
+`mode` 为 `HARD` 或 `GRACEFUL`（默认）。无法识别时按 `GRACEFUL`。
+
+方法在消息写出后即返回。平台不会回 `scene.switchVideo` 成功包。画面切换看
+`scene.resourceTransition`。字段表和示例见 [README.zh.md](./README.zh.md#切视频)。
 
 ---
 

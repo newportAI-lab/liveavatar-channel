@@ -54,6 +54,7 @@ Describes "what is being done"
 | prompt | system.prompt |
 | idleTrigger | system.idleTrigger |
 | resourceTransition | scene.resourceTransition |
+| switchVideo | scene.switchVideo |
 
 ---
 
@@ -218,6 +219,18 @@ There is no `streamId` in the typed SDK data. The active WebSocket session
 already scopes the stream. If either required resource ID is missing or blank,
 the SDK treats the payload as malformed and does not invoke
 `onResourceTransition`.
+
+#### Developer Backend → Live Avatar Service (scene.switchVideo)
+
+Send this custom event to change the playing video. There is no typed SDK
+method. Use `AvatarAgent.sendCustomEvent`. Field names are camelCase.
+`onceVideos`, `loopVideos`, and `videoChoreographyGroups` items may be a
+resource ID or a base-video alias. `mode` is `HARD` or `GRACEFUL` (default).
+Unknown values become `GRACEFUL`.
+
+The call returns after the event is written. The platform does not reply with
+a `scene.switchVideo` success event. Watch `scene.resourceTransition` for the
+cut. Field table and examples: [README.md](./README.md#switch-video).
 
 ---
 
