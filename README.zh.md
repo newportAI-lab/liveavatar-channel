@@ -63,7 +63,7 @@ SessionInfo info = agent.start();
 <dependency>
     <groupId>io.github.newportai-lab</groupId>
     <artifactId>liveavatar-channel-sdk</artifactId>
-    <version>1.3.2</version>
+    <version>1.3.3</version>
 </dependency>
 ```
 
@@ -312,7 +312,7 @@ agent.sendCustomEvent(null, "scene.switchVideo", data);
 
 ## 协议
 
-完整 WebSocket 协议定义见 [PROTOCOL.zh.md](./PROTOCOL.zh.md)。
+完整 WebSocket 协议定义见 [PROTOCOL.zh.md](https://newportai-lab.github.io/liveavatar-integration-guide/PROTOCOL.zh.html)。
 
 ## 更新记录
 

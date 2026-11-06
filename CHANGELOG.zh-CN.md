@@ -4,6 +4,11 @@
 
 本文件记录本 SDK 的主要变化。日期为发布日期。
 
+## [1.3.3] - 2026-10-28
+
+1. Changed: 项目发布工具现在可以把受权限保护且被 Git 忽略的 `.env` 中的 `GPG_PASSPHRASE` 安全传给 Maven，不执行该文件，也不输出变量值。本版本没有 SDK API 或线协议变化。
+2. Documented: 中英文 README 和协议文档补充了 `scene.switchVideo` 用法、`HARD` 与 `GRACEFUL` 模式，以及通过 `scene.resourceTransition` 观察实际切换的流程。
+
 ## [1.3.2] - 2026-10-22
 
 1. Added: `sendExternalPlayback(requestId, responseId, frames)` 在平台 TTS 会话中把开发者 PCM 当人声轮播放。它发送 `response.audio.start` 和 `response.audio.finish`，`data.purpose` 为 `external`，随后发送现有二进制音频帧。SDK 不重采样。这不是 `sendExternalAudio`；后者仍是伴奏，不会替换口播。start 之后如果某一帧发送失败，仍会发送 `response.audio.finish`。平台 Dispatcher 必须已经接受 `purpose=external`。

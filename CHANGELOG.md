@@ -4,6 +4,11 @@
 
 Notable changes to this SDK are documented here. The date is the release day.
 
+## [1.3.3] - 2026-10-28
+
+1. Changed: project release tooling now passes `GPG_PASSPHRASE` from a protected, Git-ignored `.env` to Maven without sourcing the file or printing the value. There are no SDK API or wire-protocol changes.
+2. Documented: `scene.switchVideo` usage, `HARD` and `GRACEFUL` modes, and the corresponding `scene.resourceTransition` observation flow in the English and Chinese README and protocol guides.
+
 ## [1.3.2] - 2026-10-22
 
 1. Added: `sendExternalPlayback(requestId, responseId, frames)` plays developer PCM as the voice turn while platform TTS is enabled. It sends `response.audio.start` and `response.audio.finish` with `data.purpose=external`, then the existing binary audio frames. The SDK does not resample. This is not `sendExternalAudio`, which remains accompaniment and does not replace speech. If a frame fails after start, `response.audio.finish` is still sent. The platform Dispatcher must already accept `purpose=external`.

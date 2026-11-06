@@ -63,7 +63,7 @@ SessionInfo info = agent.start();
 <dependency>
     <groupId>io.github.newportai-lab</groupId>
     <artifactId>liveavatar-channel-sdk</artifactId>
-    <version>1.3.2</version>
+    <version>1.3.3</version>
 </dependency>
 ```
 
@@ -313,7 +313,7 @@ The example in `DemoAgentService` keeps this call commented and does not run it 
 
 ## Protocol
 
-See [PROTOCOL.md](./PROTOCOL.md) for the full WebSocket protocol definition.
+See [PROTOCOL.md](https://newportai-lab.github.io/liveavatar-integration-guide/PROTOCOL.html) for the full WebSocket protocol definition.
 
 ## Changelog
 

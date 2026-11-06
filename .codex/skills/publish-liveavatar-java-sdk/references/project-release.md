@@ -55,7 +55,13 @@ Before deployment, produce a short evidence table covering every item below. Any
 
 Not every internal implementation change requires README or protocol edits. “No documentation change required” is acceptable only when the evidence table identifies the change as internal and explains why public API, behavior, configuration, examples, and wire protocol are unaffected. Do not silently infer that documentation is current merely because files were modified.
 
-Before requesting deploy confirmation, run `mvn -f liveavatar-channel-sdk/pom.xml clean verify -Prelease` and confirm signatures exist for the POM and all three JARs. This proves signing readiness but does not freeze the bytes Maven will rebuild during deploy.
+Before requesting deploy confirmation, run the signing check through the helper and confirm signatures exist for the POM and all three JARs:
+
+```text
+<python> <skill>/scripts/maven_with_env.py --repo <repository-root> -- mvn -f liveavatar-channel-sdk/pom.xml clean verify -Prelease
+```
+
+This proves signing readiness but does not freeze the bytes Maven will rebuild during deploy.
 
 When the agent cannot unlock the key, a repository-root `.env` may contain only the fallback secret needed here:
 
@@ -63,14 +69,14 @@ When the agent cannot unlock the key, a repository-root `.env` may contain only 
 GPG_PASSPHRASE=the-local-passphrase
 ```
 
-Before reading it, verify `git check-ignore .env` succeeds, `git ls-files .env` and `git diff --cached -- .env` show it is neither tracked nor staged, and its permissions are owner-only (normally `0600`). Parse only the single assignment as data without sourcing the file. Pass it only to the Maven process and never print it. The skill must not create or modify `.env` unless the user explicitly asks.
+`scripts/maven_with_env.py` first uses a non-empty variable already present in the current process. Otherwise it requires `.env` to be a regular, non-symlink file with mode `0600`, Git-ignored, untracked, and unstaged. It parses exactly one non-empty `GPG_PASSPHRASE=` assignment as literal data without sourcing the file, then passes it only to the Maven process. The skill must not create or modify `.env` unless the user explicitly asks.
 
 ## Deployment and remote checks
 
 The release command is scoped to the SDK POM:
 
-```bash
-mvn -f liveavatar-channel-sdk/pom.xml clean deploy -Prelease
+```text
+<python> <skill>/scripts/maven_with_env.py --repo <repository-root> -- mvn -f liveavatar-channel-sdk/pom.xml clean deploy -Prelease
 ```
 
 Do not add `-Dgpg.passphrase=<secret>` in an assistant-run command. Maven deploy performs a new lifecycle build, so the pre-deploy preview confirms source state and intent rather than exact artifact hashes.
