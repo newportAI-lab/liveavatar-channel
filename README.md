@@ -118,7 +118,7 @@ AvatarAgentConfig config = AvatarAgentConfig.builder()
     .rendererProfile(RendererProfile.PET).build();
 ```
 
-This choice overrides the Nacos avatar mapping and avatar model for this session only. Upgrade all target Dispatcher instances before using it; an older server may ignore the field. An unavailable explicit model fails instead of switching models. Stop and create a new session to select another model; switching video does not switch the model.
+The selected model applies to this session.
 
 ### External audio
 
