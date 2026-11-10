@@ -1,14 +1,14 @@
 # 更新记录
 
+[English](./CHANGELOG.md) | **中文**
+
+本文件记录本 SDK 的主要变化。日期为发布日期。
+
 ## [1.3.4] - 2026-11-10
 
 ### Added
 
 - `AvatarAgentConfig.Builder` 新增可选参数 `rendererProfile`，类型为枚举 `RendererProfile`：`NORMAL` 强制普通人物且不自动选择 4K，`PET` 使用动物，`FOUR_K` 使用 4K，null 保留原选型规则。通过 `/v1/session/start` 的 JSON 字段 `rendererProfile` 发送 `normal`、`pet`、`4k`。
-
-[English](./CHANGELOG.md) | **中文**
-
-本文件记录本 SDK 的主要变化。日期为发布日期。
 
 ## [1.3.3] - 2026-10-28
 
