@@ -63,7 +63,7 @@ SessionInfo info = agent.start();
 <dependency>
     <groupId>io.github.newportai-lab</groupId>
     <artifactId>liveavatar-channel-sdk</artifactId>
-    <version>1.3.3</version>
+    <version>1.3.4</version>
 </dependency>
 ```
 
@@ -107,6 +107,18 @@ AvatarWebSocketClient（OkHttp3 传输层，自动握手）
 | `sendPromptAudioStart()` / `sendPromptAudioFinish()` | 冷场唤醒音频（开发者 TTS） |
 | `sendCustomEvent(reqId, event, data)` | 发送自定义事件，包括 `scene.switchVideo`。见 [切视频](#切视频) |
 | `isConnected()` / `getSessionInfo()` | 状态查询 |
+
+### 开播嘴唇驱动模型
+
+`AvatarAgentConfig.Builder` 新增可选参数 `rendererProfile`，类型为枚举 `RendererProfile`：`NORMAL` 强制普通人物模型，不按分辨率自动选择 4K；`PET` 使用动物模型；`FOUR_K` 使用 4K 模型。null 或不指定时保留原选型规则。分别通过 `/v1/session/start` 的 JSON 字段 `rendererProfile` 发送 `normal`、`pet`、`4k`。
+
+```java
+AvatarAgentConfig config = AvatarAgentConfig.builder()
+    .apiKey(apiKey).avatarId(avatarId)
+    .rendererProfile(RendererProfile.PET).build();
+```
+
+仅覆盖本次会话，优先于 Nacos avatar 映射和数字人模型配置，不回写共享配置。启用前先升级目标全部 Dispatcher 实例，旧服务可能忽略字段。指定模型不可用时失败，不自动换模型。换模型须停播后新建会话；切视频不会切模型。
 
 ### 外部音频
 

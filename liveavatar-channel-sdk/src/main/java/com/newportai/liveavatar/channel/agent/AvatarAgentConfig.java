@@ -27,6 +27,7 @@ public final class AvatarAgentConfig {
     private final String rtcProvider; // nullable
     private final VoiceConfig voiceConfig; // nullable
     private final ExternalAudioConfig externalAudioConfig; // nullable
+    private final RendererProfile rendererProfile; // nullable
 
     private AvatarAgentConfig(Builder builder) {
         this.apiKey = builder.apiKey;
@@ -41,6 +42,7 @@ public final class AvatarAgentConfig {
         this.rtcProvider = builder.rtcProvider;
         this.voiceConfig = builder.voiceConfig;
         this.externalAudioConfig = builder.externalAudioConfig;
+        this.rendererProfile = builder.rendererProfile;
     }
 
     public static Builder builder() { return new Builder(); }
@@ -59,6 +61,8 @@ public final class AvatarAgentConfig {
     public String getRtcProvider() { return rtcProvider; } // nullable
     public VoiceConfig getVoiceConfig() { return voiceConfig; } // nullable
     public ExternalAudioConfig getExternalAudioConfig() { return externalAudioConfig; }
+    /** Optional session model; null follows the existing platform selection rules. */
+    public RendererProfile getRendererProfile() { return rendererProfile; }
 
     // ── Builder ──
 
@@ -75,6 +79,7 @@ public final class AvatarAgentConfig {
         private String rtcProvider; // nullable
         private VoiceConfig voiceConfig; // nullable
         private ExternalAudioConfig externalAudioConfig;
+        private RendererProfile rendererProfile;
 
         /** API Key from the console (required). */
         public Builder apiKey(String apiKey) { this.apiKey = apiKey; return this; }
@@ -112,6 +117,16 @@ public final class AvatarAgentConfig {
         /** Optional external audio format. Omitted means follow the voice format. */
         public Builder externalAudioConfig(ExternalAudioConfig externalAudioConfig) {
             this.externalAudioConfig = externalAudioConfig;
+            return this;
+        }
+
+        /**
+         * Optional session model: NORMAL forces ordinary human, PET selects animal,
+         * FOUR_K selects 4K. Null omits the field and keeps existing selection rules.
+         * Requires a dispatcher supporting rendererProfile; cannot change an active session.
+         */
+        public Builder rendererProfile(RendererProfile rendererProfile) {
+            this.rendererProfile = rendererProfile;
             return this;
         }
 
