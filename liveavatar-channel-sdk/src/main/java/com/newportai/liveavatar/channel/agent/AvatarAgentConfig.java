@@ -123,7 +123,6 @@ public final class AvatarAgentConfig {
         /**
          * Optional session model: NORMAL forces ordinary human, PET selects animal,
          * FOUR_K selects 4K. Null omits the field and keeps existing selection rules.
-         * Requires a dispatcher supporting rendererProfile; cannot change an active session.
          */
         public Builder rendererProfile(RendererProfile rendererProfile) {
             this.rendererProfile = rendererProfile;

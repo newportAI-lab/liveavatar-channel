@@ -52,7 +52,6 @@ public class DemoAgentService implements AgentListener {
      * NORMAL forces ordinary human, FOUR_K selects 4K, PET selects animal.
      * Omit rendererProfile (or pass null) to preserve existing platform selection.
      * getRendererProfile().getWireValue() exposes normal/pet/4k when configured.
-     * Requires an upgraded Dispatcher; applies at start, not during a live session.
      */
     private final Map<String, AvatarAgent> sessions = new ConcurrentHashMap<>();
 
