@@ -457,6 +457,10 @@ public class AvatarAgent {
             appendJsonNumber(sb, "pitch", voiceConfig.getPitch(), first);
             sb.append('}');
         }
+        RendererProfile profile = config.getRendererProfile();
+        if (profile != null) {
+            sb.append(",\"rendererProfile\":\"").append(profile.getWireValue()).append('"');
+        }
         ExternalAudioConfig external = config.getExternalAudioConfig();
         if (external != null) {
             sb.append(",\"externalAudioConfig\":{");

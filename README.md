@@ -63,7 +63,7 @@ SessionInfo info = agent.start();
 <dependency>
     <groupId>io.github.newportai-lab</groupId>
     <artifactId>liveavatar-channel-sdk</artifactId>
-    <version>1.3.3</version>
+    <version>1.3.4</version>
 </dependency>
 ```
 
@@ -107,6 +107,18 @@ AvatarWebSocketClient (OkHttp3 transport, auto-handshake)
 | `sendPromptAudioStart()` / `sendPromptAudioFinish()` | Idle-wake audio (Developer TTS) |
 | `sendCustomEvent(reqId, event, data)` | Send an application-specific event, including `scene.switchVideo`. See [Switch video](#switch-video) |
 | `isConnected()` / `getSessionInfo()` | State queries |
+
+### Session lip-sync model
+
+`AvatarAgentConfig.Builder` adds optional `rendererProfile` of enum type `RendererProfile`: `NORMAL` forces the ordinary human model without automatic 4K selection, `PET` selects the animal model, and `FOUR_K` selects the 4K model. Null or omission keeps existing platform selection. Values are sent as `normal`, `pet`, or `4k` in the `/v1/session/start` JSON field `rendererProfile`.
+
+```java
+AvatarAgentConfig config = AvatarAgentConfig.builder()
+    .apiKey(apiKey).avatarId(avatarId)
+    .rendererProfile(RendererProfile.PET).build();
+```
+
+This choice overrides the Nacos avatar mapping and avatar model for this session only. Upgrade all target Dispatcher instances before using it; an older server may ignore the field. An unavailable explicit model fails instead of switching models. Stop and create a new session to select another model; switching video does not switch the model.
 
 ### External audio
 

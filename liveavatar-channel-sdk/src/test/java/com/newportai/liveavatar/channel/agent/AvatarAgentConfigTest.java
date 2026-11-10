@@ -12,6 +12,20 @@ import static org.junit.Assert.assertNotNull;
 public class AvatarAgentConfigTest {
 
     @Test
+    public void testRendererProfileRequestAndOmission() throws Exception {
+        for (RendererProfile profile : new RendererProfile[]{null, RendererProfile.NORMAL, RendererProfile.PET, RendererProfile.FOUR_K}) {
+            AvatarAgentConfig config = AvatarAgentConfig.builder().apiKey("test").avatarId("avatar")
+                    .rendererProfile(profile).build();
+            AvatarAgent agent = AvatarAgent.builder().config(config).listener(new AgentListener() {}).build();
+            Method method = AvatarAgent.class.getDeclaredMethod("buildStartRequest");
+            method.setAccessible(true);
+            com.fasterxml.jackson.databind.JsonNode body = new ObjectMapper().readTree((String) method.invoke(agent));
+            assertEquals(profile != null, body.has("rendererProfile"));
+            if (profile != null) assertEquals(profile.getWireValue(), body.path("rendererProfile").asText());
+        }
+    }
+
+    @Test
     public void testVoiceConfigCanBeSet() {
         AvatarAgentConfig.VoiceConfig voiceConfig = AvatarAgentConfig.VoiceConfig.builder()
                 .volume(80)

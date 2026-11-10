@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.3.4] - 2026-11-10
+
+### Added
+
+- `AvatarAgentConfig.Builder` adds optional `rendererProfile` of enum type `RendererProfile`: `NORMAL` forces ordinary human without automatic 4K selection, `PET` selects animal, `FOUR_K` selects 4K, and null preserves existing selection. The value is sent as `rendererProfile` (`normal`/`pet`/`4k`) in `/v1/session/start`.
+
+Upgrade all target Dispatcher instances before using an explicit model. If no instance supports the requested model, session startup fails. Changing the model requires stopping the session and starting a new one.
+
 **English** | [中文](./CHANGELOG.zh-CN.md)
 
 Notable changes to this SDK are documented here. The date is the release day.

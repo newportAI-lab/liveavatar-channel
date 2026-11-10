@@ -45,6 +45,15 @@ public class DemoAgentService implements AgentListener {
     @Value("${avatar.tts.developer-enabled:false}")
     private boolean developerTts;
 
+    /**
+     * Optional per-session model example (not executed by the normal demo):
+     * AvatarAgentConfig.builder().apiKey(apiKey).avatarId(defaultAvatarId)
+     *     .rendererProfile(com.newportai.liveavatar.channel.agent.RendererProfile.PET).build();
+     * NORMAL forces ordinary human, FOUR_K selects 4K, PET selects animal.
+     * Omit rendererProfile (or pass null) to preserve existing platform selection.
+     * getRendererProfile().getWireValue() exposes normal/pet/4k when configured.
+     * Requires an upgraded Dispatcher; applies at start, not during a live session.
+     */
     private final Map<String, AvatarAgent> sessions = new ConcurrentHashMap<>();
 
     /**
