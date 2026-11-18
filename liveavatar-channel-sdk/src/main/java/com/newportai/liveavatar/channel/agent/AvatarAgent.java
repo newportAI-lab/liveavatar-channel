@@ -457,9 +457,9 @@ public class AvatarAgent {
             appendJsonNumber(sb, "pitch", voiceConfig.getPitch(), first);
             sb.append('}');
         }
-        RendererProfile profile = config.getRendererProfile();
+        String profile = config.getRendererProfileName();
         if (profile != null) {
-            sb.append(",\"rendererProfile\":\"").append(profile.getWireValue()).append('"');
+            sb.append(",\"rendererProfile\":").append(MAPPER.valueToTree(profile).toString());
         }
         ExternalAudioConfig external = config.getExternalAudioConfig();
         if (external != null) {

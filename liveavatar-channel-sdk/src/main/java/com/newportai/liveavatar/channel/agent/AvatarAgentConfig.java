@@ -27,7 +27,8 @@ public final class AvatarAgentConfig {
     private final String rtcProvider; // nullable
     private final VoiceConfig voiceConfig; // nullable
     private final ExternalAudioConfig externalAudioConfig; // nullable
-    private final RendererProfile rendererProfile; // nullable
+    private final RendererProfile rendererProfile; // nullable; legacy enum view
+    private final String rendererProfileName; // nullable; open model name
 
     private AvatarAgentConfig(Builder builder) {
         this.apiKey = builder.apiKey;
@@ -43,6 +44,7 @@ public final class AvatarAgentConfig {
         this.voiceConfig = builder.voiceConfig;
         this.externalAudioConfig = builder.externalAudioConfig;
         this.rendererProfile = builder.rendererProfile;
+        this.rendererProfileName = builder.rendererProfileName;
     }
 
     public static Builder builder() { return new Builder(); }
@@ -61,8 +63,10 @@ public final class AvatarAgentConfig {
     public String getRtcProvider() { return rtcProvider; } // nullable
     public VoiceConfig getVoiceConfig() { return voiceConfig; } // nullable
     public ExternalAudioConfig getExternalAudioConfig() { return externalAudioConfig; }
-    /** Optional session model; null follows the existing platform selection rules. */
+    /** Legacy enum view; null if unset or not represented by the enum. Use {@link #getRendererProfileName()}. */
     public RendererProfile getRendererProfile() { return rendererProfile; }
+    /** Effective model name sent to the platform; null omits the field. */
+    public String getRendererProfileName() { return rendererProfileName; }
 
     // ── Builder ──
 
@@ -80,6 +84,7 @@ public final class AvatarAgentConfig {
         private VoiceConfig voiceConfig; // nullable
         private ExternalAudioConfig externalAudioConfig;
         private RendererProfile rendererProfile;
+        private String rendererProfileName;
 
         /** API Key from the console (required). */
         public Builder apiKey(String apiKey) { this.apiKey = apiKey; return this; }
@@ -126,6 +131,25 @@ public final class AvatarAgentConfig {
          */
         public Builder rendererProfile(RendererProfile rendererProfile) {
             this.rendererProfile = rendererProfile;
+            this.rendererProfileName = rendererProfile == null ? null : rendererProfile.getWireValue();
+            return this;
+        }
+
+        /**
+         * Open model name, for example "cartoon" or another platform-supported name.
+         * No model-name allowlist is applied. Null omits the field; the platform treats
+         * empty or whitespace-only strings as unspecified. The last call to
+         * this method or rendererProfile(RendererProfile) wins, including null.
+         */
+        public Builder rendererProfileName(String rendererProfileName) {
+            this.rendererProfileName = rendererProfileName;
+            this.rendererProfile = null;
+            for (RendererProfile known : RendererProfile.values()) {
+                if (known.getWireValue().equals(rendererProfileName)) {
+                    this.rendererProfile = known;
+                    break;
+                }
+            }
             return this;
         }
 

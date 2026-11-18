@@ -4,6 +4,12 @@
 
 Notable changes to this SDK are documented here. The date is the release day.
 
+## [1.3.5] - 2026-11-18
+
+### Added
+
+- Added the `cartoon` rendering model. Select it with `AvatarAgentConfig.Builder.rendererProfileName("cartoon")`.
+
 ## [1.3.4] - 2026-11-10
 
 ### Added
