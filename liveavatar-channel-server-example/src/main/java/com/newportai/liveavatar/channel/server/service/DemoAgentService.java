@@ -48,10 +48,16 @@ public class DemoAgentService implements AgentListener {
     /**
      * Optional per-session model example (not executed by the normal demo):
      * AvatarAgentConfig.builder().apiKey(apiKey).avatarId(defaultAvatarId)
-     *     .rendererProfile(com.newportai.liveavatar.channel.agent.RendererProfile.PET).build();
-     * NORMAL forces ordinary human, FOUR_K selects 4K, PET selects animal.
+     *     .rendererProfileName("cartoon").build();
+     * Any platform-supported model name can be supplied without an SDK update.
+     * Legacy rendererProfile(RendererProfile.PET) remains available; NORMAL forces
+     * ordinary human, FOUR_K selects 4K, PET selects animal.
      * Omit rendererProfile (or pass null) to preserve existing platform selection.
-     * getRendererProfile().getWireValue() exposes normal/pet/4k when configured.
+     * getRendererProfileName() returns the effective string, including custom models.
+     * getRendererProfile() returns a known enum value or null for a custom name.
+     * AvatarAgentConfig.builder().apiKey(apiKey).avatarId(avatarId)
+     *     .rendererProfile(com.newportai.liveavatar.channel.agent.RendererProfile.PET)
+     *     .rendererProfileName(null).build(); // Last call wins; null clears the model.
      */
     private final Map<String, AvatarAgent> sessions = new ConcurrentHashMap<>();
 

@@ -26,6 +26,27 @@ public class AvatarAgentConfigTest {
     }
 
     @Test
+    public void testOpenModelNameSerializationAndLegacyCompatibility() throws Exception {
+        for (String name : new String[]{"cartoon", "future-model", "quoted\"\\\nmodel", "", " \t\n"}) {
+            AvatarAgentConfig config = AvatarAgentConfig.builder().apiKey("test").avatarId("avatar")
+                    .rendererProfileName(name).build();
+            AvatarAgent agent = AvatarAgent.builder().config(config).listener(new AgentListener() {}).build();
+            Method method = AvatarAgent.class.getDeclaredMethod("buildStartRequest");
+            method.setAccessible(true);
+            assertEquals(name, new ObjectMapper().readTree((String) method.invoke(agent))
+                    .path("rendererProfile").textValue());
+            assertEquals(name, config.getRendererProfileName());
+        }
+        AvatarAgentConfig.Builder builder = AvatarAgentConfig.builder().apiKey("test").avatarId("avatar");
+        assertEquals("pet", builder.rendererProfileName("future-model").rendererProfile(RendererProfile.PET)
+                .build().getRendererProfileName());
+        assertEquals(RendererProfile.PET, builder.rendererProfileName("pet").build().getRendererProfile());
+        assertEquals(null, builder.rendererProfileName("future-model").build().getRendererProfile());
+        assertEquals(null, builder.rendererProfileName(null).build().getRendererProfileName());
+        assertEquals(null, builder.rendererProfileName("future-model").rendererProfile(null).build().getRendererProfileName());
+    }
+
+    @Test
     public void testVoiceConfigCanBeSet() {
         AvatarAgentConfig.VoiceConfig voiceConfig = AvatarAgentConfig.VoiceConfig.builder()
                 .volume(80)

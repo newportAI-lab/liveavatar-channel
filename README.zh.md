@@ -63,7 +63,7 @@ SessionInfo info = agent.start();
 <dependency>
     <groupId>io.github.newportai-lab</groupId>
     <artifactId>liveavatar-channel-sdk</artifactId>
-    <version>1.3.4</version>
+    <version>1.3.5</version>
 </dependency>
 ```
 
@@ -110,12 +110,21 @@ AvatarWebSocketClient（OkHttp3 传输层，自动握手）
 
 ### 开播嘴唇驱动模型
 
-`AvatarAgentConfig.Builder` 新增可选参数 `rendererProfile`，类型为枚举 `RendererProfile`：`NORMAL` 强制普通人物模型，不按分辨率自动选择 4K；`PET` 使用动物模型；`FOUR_K` 使用 4K 模型。null 或不指定时保留原选型规则。分别通过 `/v1/session/start` 的 JSON 字段 `rendererProfile` 发送 `normal`、`pet`、`4k`。
+通过 `AvatarAgentConfig.Builder.rendererProfileName(String)` 为本次会话指定渲染模型。
+
+| 参数值 | 渲染模型 |
+| --- | --- |
+| `normal` | 普通人物模型，不会自动选择 4K。 |
+| `pet` | 动物模型。 |
+| `4k` | 4K 模型。 |
+| `cartoon` | 卡通模型。 |
+
+未指定模型时，平台按 Avatar 的默认规则选模。
 
 ```java
 AvatarAgentConfig config = AvatarAgentConfig.builder()
     .apiKey(apiKey).avatarId(avatarId)
-    .rendererProfile(RendererProfile.PET).build();
+    .rendererProfileName("cartoon").build();
 ```
 
 所选模型用于本次会话。

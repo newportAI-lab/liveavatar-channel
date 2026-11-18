@@ -63,7 +63,7 @@ SessionInfo info = agent.start();
 <dependency>
     <groupId>io.github.newportai-lab</groupId>
     <artifactId>liveavatar-channel-sdk</artifactId>
-    <version>1.3.4</version>
+    <version>1.3.5</version>
 </dependency>
 ```
 
@@ -110,12 +110,21 @@ AvatarWebSocketClient (OkHttp3 transport, auto-handshake)
 
 ### Session lip-sync model
 
-`AvatarAgentConfig.Builder` adds optional `rendererProfile` of enum type `RendererProfile`: `NORMAL` forces the ordinary human model without automatic 4K selection, `PET` selects the animal model, and `FOUR_K` selects the 4K model. Null or omission keeps existing platform selection. Values are sent as `normal`, `pet`, or `4k` in the `/v1/session/start` JSON field `rendererProfile`.
+To select a rendering model for the session, pass a model name to `AvatarAgentConfig.Builder.rendererProfileName(String)`.
+
+| Value | Rendering model |
+| --- | --- |
+| `normal` | Standard human model; disables automatic 4K selection. |
+| `pet` | Animal model. |
+| `4k` | 4K model. |
+| `cartoon` | Cartoon model. |
+
+If no model is specified, the platform follows the avatar's default model selection rules.
 
 ```java
 AvatarAgentConfig config = AvatarAgentConfig.builder()
     .apiKey(apiKey).avatarId(avatarId)
-    .rendererProfile(RendererProfile.PET).build();
+    .rendererProfileName("cartoon").build();
 ```
 
 The selected model applies to this session.
