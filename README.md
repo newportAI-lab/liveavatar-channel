@@ -63,7 +63,7 @@ SessionInfo info = agent.start();
 <dependency>
     <groupId>io.github.newportai-lab</groupId>
     <artifactId>liveavatar-channel-sdk</artifactId>
-    <version>1.3.5</version>
+    <version>1.3.6</version>
 </dependency>
 ```
 
@@ -107,6 +107,16 @@ AvatarWebSocketClient (OkHttp3 transport, auto-handshake)
 | `sendPromptAudioStart()` / `sendPromptAudioFinish()` | Idle-wake audio (Developer TTS) |
 | `sendCustomEvent(reqId, event, data)` | Send an application-specific event, including `scene.switchVideo`. See [Switch video](#switch-video) |
 | `isConnected()` / `getSessionInfo()` | State queries |
+
+### HiThink emotion SSML
+
+**Plain text.** For speech without an explicit emotion, call `agent.sendPrompt(text)`. In a prompt or response stream, pass the plain text to `prompt.sendChunk(text)` or `response.sendChunk(text)`. Skip SSML generation and the `label` parameter.
+
+**Emotion SSML.** Use this only for avatars configured with platform HiThink TTS. Use the HiThink voice ID from the avatar configuration. Import `com.newportai.liveavatar.channel.util.HithinkSsml`. Pass unescaped plain text to `HithinkSsml.emotionSegments(text, voiceId, label)`. The same label applies to every fragment. Send each fragment separately, in list order, within the same prompt or response stream. If the complete SSML fits within one fragment, the list contains one item.
+
+**Emotion labels.** HiThink documents `natural`, `non`, `neutral`, `happy`, `sad`, `angry`, `fearful`, `disgust`, `surprised`. The effect depends on the voice. The SDK includes unrecognized labels in the SSML. HiThink treats an unrecognized label as speech without an explicit emotion. A blank label or a label containing invalid XML characters raises `IllegalArgumentException` during generation.
+
+**Fragment limit.** The default is 3,000 Unicode code points per fragment, including tags and XML escapes. Set a custom limit with `HithinkSsml.emotionSegments(text, voiceId, label, 4000)`. Prefer 4,000 or fewer for playback. The valid range is 1 to 10,000, and the limit must leave room for the markup and escaped text.
 
 ### Session lip-sync model
 
