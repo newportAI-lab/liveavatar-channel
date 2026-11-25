@@ -63,7 +63,7 @@ SessionInfo info = agent.start();
 <dependency>
     <groupId>io.github.newportai-lab</groupId>
     <artifactId>liveavatar-channel-sdk</artifactId>
-    <version>1.3.5</version>
+    <version>1.3.6</version>
 </dependency>
 ```
 
@@ -107,6 +107,16 @@ AvatarWebSocketClient（OkHttp3 传输层，自动握手）
 | `sendPromptAudioStart()` / `sendPromptAudioFinish()` | 冷场唤醒音频（开发者 TTS） |
 | `sendCustomEvent(reqId, event, data)` | 发送自定义事件，包括 `scene.switchVideo`。见 [切视频](#切视频) |
 | `isConnected()` / `getSessionInfo()` | 状态查询 |
+
+### HiThink 情感 SSML
+
+**普通文本。** 无需指定情感时，直接调用 `agent.sendPrompt(text)`。在提示流或回复流中，直接调用 `prompt.sendChunk(text)` 或 `response.sendChunk(text)`。无需构造 SSML 或传 `label`。
+
+**情感 SSML。** 仅用于配置了平台 HiThink TTS 的数字人，音色 ID 取自该数字人的 HiThink 配置。导入 `com.newportai.liveavatar.channel.util.HithinkSsml`。将未转义的普通文本传给 `HithinkSsml.emotionSegments(text, voiceId, label)`，同一个 `label` 应用于每个片段。按列表顺序将每个片段单独发到同一条提示流或回复流。完整 SSML 能放进一片时，返回一个片段。
+
+**情感标签。** HiThink 文档列出 `natural`、`non`、`neutral`、`happy`、`sad`、`angry`、`fearful`、`disgust`、`surprised`，实际效果取决于音色。拼错或未识别的标签仍会写入 SSML，HiThink 按未指定情感处理。空标签或含非法 XML 字符的标签会在生成时抛出 `IllegalArgumentException`。
+
+**片段长度。** 默认每片最多 3,000 个 Unicode 码点，包含标签和 XML 转义。可用 `HithinkSsml.emotionSegments(text, voiceId, label, 4000)` 自定义。播放建议不超过 4,000，参数允许 1 至 10,000，且必须能容纳标签和转义后的正文。
 
 ### 开播嘴唇驱动模型
 

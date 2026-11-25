@@ -195,9 +195,17 @@ public class DemoAgentService implements AgentListener {
      * agent.sendVoiceFinish(requestId);
      * agent.sendAsrFinal(requestId, "final text");
      *
+     * // Without an explicit emotion, pass plain text directly.
      * agent.sendPrompt("Are you still there?");
+     *
+     * // Optional alternative for a HiThink TTS avatar. Use its configured HiThink voice ID.
+     * java.util.List<String> fragments = com.newportai.liveavatar.channel.util.HithinkSsml
+     *         .emotionSegments(text, voiceId, "happy");
+     * // To set a custom fragment limit, use emotionSegments(text, voiceId, "happy", 4000).
      * PromptStream prompt = agent.beginPrompt(requestId);
-     * prompt.sendChunk("Hello");
+     * for (String fragment : fragments) {
+     *     prompt.sendChunk(fragment);
+     * }
      * prompt.done();
      * PromptStream named = agent.beginPrompt(requestId, responseId);
      *
